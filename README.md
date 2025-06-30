@@ -40,15 +40,27 @@ export GITHUB_USER="your-github-username"
 export GITHUB_TOKEN="ghp_your_token_here"
 ```
 
-### 2. Deploy to Cloudflare
+### 2. Configure Secrets & Deploy
 
 ```bash
 # Login to Cloudflare
 wrangler login
 
-# Update wrangler.toml with your settings
-# Then deploy
-npm run deploy
+# Set required secrets
+wrangler secret put GITHUB_USER
+# Enter: your-github-username
+
+wrangler secret put GITHUB_TOKEN
+# Enter: ghp_your_token_here
+
+wrangler secret put SITE_URL
+# Enter: https://your-domain.com
+
+wrangler secret put SITE_NAME
+# Enter: Your Blog Name
+
+# Deploy to Cloudflare
+wrangler deploy
 ```
 
 ### 3. Create Your First Post
@@ -163,25 +175,29 @@ make search Q=term # Search posts
 ```toml
 name = "your-blog"
 main = "worker.js"
+compatibility_date = "2024-01-01"
 
-[vars]
-GITHUB_USER = "your-username"
-
+# Optional: KV namespace for caching
 [[kv_namespaces]]
 binding = "GIST_CACHE"
 id = "your-kv-id"
 
+# For custom domain
 [[routes]]
 pattern = "yourdomain.com/*"
 zone_name = "yourdomain.com"
 ```
+
+**Note**: Secrets (GITHUB_USER, GITHUB_TOKEN, SITE_URL, SITE_NAME) are configured via `wrangler secret` commands, not in wrangler.toml.
 
 ### Environment Variables
 
 | Variable | Description | Required |
 |----------|-------------|----------|
 | `GITHUB_USER` | Your GitHub username | ✅ |
-| `GITHUB_TOKEN` | Personal access token | ✅ (for CLI) |
+| `GITHUB_TOKEN` | Personal access token | ✅ |
+| `SITE_URL` | Your blog URL (e.g., https://blog.example.com) | ✅ |
+| `SITE_NAME` | Your blog name | ✅ |
 | `GIST_CACHE` | KV namespace binding | ⭕ (recommended) |
 
 ## 📱 Features in Detail
@@ -233,12 +249,7 @@ Available at `/rss.xml` for feed readers. Includes:
 
 ### Private Gists
 
-Set GitHub token as secret:
-
-```bash
-wrangler secret put GITHUB_TOKEN
-# Enter token when prompted
-```
+The GitHub token secret you configured during deployment allows access to private gists. No additional configuration needed.
 
 ### Bulk Operations
 
