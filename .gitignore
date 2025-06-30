@@ -1,0 +1,50 @@
+# Dependencies
+node_modules/
+
+# Cloudflare Workers
+.wrangler/
+.dev.vars
+wrangler.local.toml
+
+# Environment variables
+.env
+.env.local
+.env.production
+
+# Logs
+*.log
+logs/
+
+# Go binaries
+*.exe
+gist
+main
+
+# Cache directories
+.gist-cache/
+cache/
+
+# Config files with secrets
+.gistconfig
+
+# Temporary files
+*.tmp
+*.bak
+*.old
+*.swp
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.sublime-*
+
+# Personal/development files
+CLAUDE.md
+repomix*
+.repomixignore
+.github/FUNDING.yml

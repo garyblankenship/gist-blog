@@ -1,0 +1,37 @@
+{
+  "name": "gist-blog",
+  "version": "1.0.0",
+  "description": "Transform GitHub Gists into a beautiful blog powered by Cloudflare Workers",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "build": "node build.js",
+    "build:deploy": "npm run build && npm run deploy",
+    "tail": "wrangler tail",
+    "upload": "go run upload-gist.go",
+    "sync": "go run gist-manager.go sync",
+    "list": "go run gist-manager.go list",
+    "clean": "rm -rf node_modules .wrangler .gist-cache"
+  },
+  "keywords": [
+    "blog",
+    "gist",
+    "github",
+    "cloudflare-workers",
+    "jamstack",
+    "static-site"
+  ],
+  "author": "Gary Blankenship",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/garyblankenship/gist-blog.git"
+  },
+  "devDependencies": {
+    "wrangler": "^3.0.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}

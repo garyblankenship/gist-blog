@@ -1,0 +1,21 @@
+name = "gary-info"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+
+# All sensitive data is stored as secrets, not environment variables
+# Run: wrangler secret put GITHUB_USER
+# Run: wrangler secret put GITHUB_TOKEN  
+# Run: wrangler secret put SITE_URL
+# Run: wrangler secret put SITE_NAME
+
+# KV namespace for caching - replace with your actual namespace ID
+# Run: wrangler kv:namespace create "GIST_CACHE" to get your ID
+[[kv_namespaces]]
+binding = "GIST_CACHE"
+id = "32857727c97346c38c0eabdec7c0f551"
+preview_id = "25de338748544f3eb848db8faf8e1a95"
+
+# Routes for your domain
+[[routes]]
+pattern = "gary.info/*"
+zone_name = "gary.info"
