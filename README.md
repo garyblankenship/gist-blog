@@ -6,6 +6,10 @@ Transform your GitHub Gists into a beautiful, fast blog powered by Cloudflare Wo
 ![Cloudflare Workers](https://img.shields.io/badge/Cloudflare-Workers-orange.svg)
 ![Go](https://img.shields.io/badge/Go-1.19+-00ADD8.svg)
 
+## 📌 Security Note
+
+This blog system displays only public gists. For best practices, use a GitHub token with minimal permissions and consider using a dedicated GitHub account for blog content.
+
 ## ✨ Features
 
 - **📝 GitHub Gists as Posts** - Write in Gist, publish instantly

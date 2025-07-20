@@ -78,7 +78,11 @@ class GistBlog {
     }
 
     const gists = await response.json();
-    const processed = gists.map(gist => this.processGist(gist));
+    
+    // Filter to only show public gists on the blog
+    const publicGists = gists.filter(gist => gist.public === true);
+    
+    const processed = publicGists.map(gist => this.processGist(gist));
 
     // Sort by created date (newest first)
     processed.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
@@ -166,6 +170,12 @@ class GistBlog {
     }
 
     const gist = await response.json();
+    
+    // Only show public gists
+    if (gist.public !== true) {
+      return null;
+    }
+    
     const processed = this.processGist(gist);
 
     // Cache in KV if available

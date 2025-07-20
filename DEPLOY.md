@@ -2,6 +2,14 @@
 
 Complete guide for deploying Gist Blog to Cloudflare Workers.
 
+## 📌 Security Note
+
+The worker.js file includes filtering to ensure only public gists are displayed on your blog. When using a GitHub token, we recommend:
+
+1. Using a token with minimal permissions (`public_repo` or `gist` scope)
+2. Consider using a dedicated GitHub account for blog content
+3. Periodically reviewing what content appears on your blog
+
 ## Table of Contents
 
 1. [Prerequisites](#prerequisites)
