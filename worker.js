@@ -774,7 +774,34 @@ code {
     background: none;
     padding: 0;
     border-radius: 0;
+    font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+    font-size: 0.875rem;
+    line-height: 1.5;
 }
+/* Language-specific syntax highlighting */
+.markdown-content pre {
+    position: relative;
+}
+.markdown-content code.language-python::before,
+.markdown-content code.language-javascript::before,
+.markdown-content code.language-go::before,
+.markdown-content code.language-bash::before {
+    content: attr(class);
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    background: var(--bg);
+    padding: 0.25rem 0.5rem;
+    border-radius: 3px;
+    text-transform: uppercase;
+    font-family: system-ui, -apple-system, sans-serif;
+}
+.markdown-content code.language-python::before { content: 'Python'; }
+.markdown-content code.language-javascript::before { content: 'JavaScript'; }
+.markdown-content code.language-go::before { content: 'Go'; }
+.markdown-content code.language-bash::before { content: 'Bash'; }
 
 .markdown-content blockquote {
     border-left: 4px solid var(--primary);
@@ -979,16 +1006,29 @@ code {
   }
 
   parseMarkdown(text) {
-    // Escape HTML first
-    let html = this.h(text);
+    // First, extract and protect code blocks
+    const codeBlocks = [];
+    let html = text;
     
-    // Code blocks (```code```)
-    html = html.replace(/```(.*?)```/gs, (match, code) => {
-      return '<pre><code>' + code.trim() + '</code></pre>';
+    // Extract code blocks and replace with placeholders
+    html = html.replace(/```(\w+)?\n?(.*?)```/gs, (match, language, code) => {
+      const placeholder = `###CODEBLOCK${codeBlocks.length}###`;
+      const lang = language ? language.toLowerCase() : '';
+      const langClass = lang ? ` class="language-${lang}"` : '';
+      codeBlocks.push(`<pre><code${langClass}>${this.h(code.trim())}</code></pre>`);
+      return placeholder;
     });
     
-    // Inline code (`code`)
-    html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+    // Extract inline code and protect it
+    const inlineCode = [];
+    html = html.replace(/`([^`]+)`/g, (match, code) => {
+      const placeholder = `###INLINECODE${inlineCode.length}###`;
+      inlineCode.push(`<code>${this.h(code)}</code>`);
+      return placeholder;
+    });
+    
+    // Now escape HTML for the rest of the content
+    html = this.h(html);
     
     // Headers
     html = html.replace(/^##### (.+)$/gm, '<h5>$1</h5>');
@@ -1066,6 +1106,18 @@ code {
       result.push('<p>' + paragraph.join('\n') + '</p>');
     }
     
-    return result.join('\n');
+    html = result.join('\n');
+    
+    // Restore code blocks
+    codeBlocks.forEach((block, index) => {
+      html = html.replace(`###CODEBLOCK${index}###`, block);
+    });
+    
+    // Restore inline code
+    inlineCode.forEach((code, index) => {
+      html = html.replace(`###INLINECODE${index}###`, code);
+    });
+    
+    return html;
   }
 }
