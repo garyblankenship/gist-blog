@@ -1,0 +1,21 @@
+name = "your-blog-name"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+
+# All sensitive data is stored as secrets, not environment variables
+# Run: wrangler secret put GITHUB_USER
+# Run: wrangler secret put GITHUB_TOKEN  
+# Run: wrangler secret put SITE_URL
+# Run: wrangler secret put SITE_NAME
+
+# KV namespace for caching - replace with your actual namespace ID
+# Run: wrangler kv:namespace create "GIST_CACHE" to get your ID
+[[kv_namespaces]]
+binding = "GIST_CACHE"
+id = "YOUR_KV_NAMESPACE_ID"
+preview_id = "YOUR_PREVIEW_NAMESPACE_ID"
+
+# Routes for your domain
+[[routes]]
+pattern = "yourdomain.com/*"
+zone_name = "yourdomain.com"
