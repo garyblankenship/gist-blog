@@ -5,7 +5,9 @@
 - [x] Verify Go CLI tools are properly installed and functional - DONE: CLI installed and working
 - [x] Test worker.js functionality locally with `npm run dev` - DONE: Running on localhost:8787
 - [x] Fix markdown code block parsing issues - DONE: Headers no longer convert inside code blocks
-- [ ] Update local wrangler to match global version (3.114.13 vs 4.28.1)
+- [x] Update wrangler dependency to 4.28.1 - DONE: Updated package.json
+- [x] Commit code improvements and project memory - DONE: Committed be38f91
+- [x] Fix GitHub API pagination to fetch ALL gists - DONE: Now fetches up to 1000 gists
 - [ ] Add performance optimizations to worker
 - [ ] Test GitHub API integration end-to-end
 
@@ -37,3 +39,23 @@
 - ✓ Markdown code block styling fixed - headers protected inside code blocks
 - ✓ Wrangler CLI updated to 4.28.1 (global), local still 3.114.13
 - ✓ KV cache cleared for problematic gist
+- ✓ GitHub API pagination fixed - Now fetches ALL gists (up to 1000 with 100 per page)
+- ✓ Gist enhancement workflow documented - Complete strategy for content refactoring
+- ✓ Content filtering added - Code-only gists without tags/description are excluded
+- ✓ H2-only TL;DR principle integrated - All articles must be scannable in 30 seconds
+- ✓ Strict tag requirement - ONLY gists with hashtags in description are displayed
+
+### Critical Knowledge: Gist Enhancement Workflow
+**Purpose**: Refactor and enhance gist content for years to come
+
+**Quick Steps**:
+1. **Enhance**: Use `@agent-content-specialist` with `ARTICLE_ENHANCEMENT_TEMPLATE.md`
+2. **Update**: `cd /tmp && gh gist edit <id> filename < enhanced.md` (WORKING METHOD)
+3. **Title**: `gh gist edit <id> -d "New Title #tags"`
+4. **Clear Cache**: `wrangler kv key delete "gist-<id>" --namespace-id 32857727c97346c38c0eabdec7c0f551 --remote`
+5. **Verify**: Check https://gary.info/gist/<id>
+
+**Key Documents**:
+- `GIST_REFACTORING_STRATEGY.md` - Complete workflow
+- `ARTICLE_ENHANCEMENT_TEMPLATE.md` - Skimmable structure rules
+- `TEMPLATE_EXAMPLE_NOSTALGIA.md` - Real application example

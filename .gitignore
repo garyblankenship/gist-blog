@@ -48,3 +48,8 @@ CLAUDE.md
 repomix*
 .repomixignore
 .github/FUNDING.yml
+
+# Development/test files
+enhanced*.md
+read-gary-info/
+*.test.md
