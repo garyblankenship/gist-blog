@@ -59,7 +59,7 @@ class GistBlog {
       }
     }
 
-    // Fetch from GitHub
+    // Fetch from GitHub with pagination
     const headers = {
       'User-Agent': 'Cloudflare-Worker-Gist-Blog',
       'Accept': 'application/vnd.github.v3+json'
@@ -69,20 +69,48 @@ class GistBlog {
       headers['Authorization'] = `token ${this.githubToken}`;
     }
 
-    const response = await fetch(`https://api.github.com/users/${this.githubUser}/gists`, {
-      headers
-    });
+    let allGists = [];
+    let page = 1;
+    let hasMore = true;
 
-    if (!response.ok) {
-      throw new Error('Failed to fetch gists from GitHub. Check your username and token.');
+    // Fetch all pages (GitHub API returns 30 per page by default, we'll use 100)
+    while (hasMore) {
+      const response = await fetch(`https://api.github.com/users/${this.githubUser}/gists?per_page=100&page=${page}`, {
+        headers
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch gists from GitHub. Check your username and token.');
+      }
+
+      const gists = await response.json();
+      
+      if (gists.length === 0) {
+        hasMore = false;
+      } else {
+        allGists = allGists.concat(gists);
+        page++;
+        
+        // Safety limit to prevent infinite loops
+        if (page > 10) {
+          hasMore = false;
+        }
+      }
     }
-
-    const gists = await response.json();
     
     // Filter to only show public gists on the blog
-    const publicGists = gists.filter(gist => gist.public === true);
+    const publicGists = allGists.filter(gist => gist.public === true);
     
-    const processed = publicGists.map(gist => this.processGist(gist));
+    const processed = publicGists.map(gist => this.processGist(gist))
+                                  .filter(gist => {
+                                    // Filter out gists without proper blog content
+                                    // MUST have tags (hashtags in description) to be included as a blog post
+                                    const hasTags = gist.tags && gist.tags.length > 0;
+                                    
+                                    // Only include gists that have at least one tag
+                                    // This ensures only intentionally published blog posts appear
+                                    return hasTags;
+                                  });
 
     // Sort by created date (newest first)
     processed.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
