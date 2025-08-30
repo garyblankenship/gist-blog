@@ -45,6 +45,7 @@ Thumbs.db
 
 # Personal/development files
 CLAUDE.md
+memory.md
 repomix*
 .repomixignore
 .github/FUNDING.yml
