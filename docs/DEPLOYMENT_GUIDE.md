@@ -192,19 +192,20 @@ zone_name = "domain2.com"
 
 ## Advanced Configuration
 
-### Enhanced Worker Features
+### Worker Configuration
 
-Use `worker-enhanced.js` for additional features:
-
+The current `worker.js` includes all features by default:
 ```toml
-main = "worker-enhanced.js"  # RSS, sitemap, better SEO
+main = "worker.js"  # All features included
 ```
 
 Features:
 - RSS feed at `/rss.xml`
 - Sitemap at `/sitemap.xml`
-- Enhanced meta tags
+- Enhanced meta tags and SEO
 - Post excerpts
+- Performance metrics (chunked markdown, connection pooling)
+- Security-first design (public gists only)
 
 ### Cache and Performance Configuration
 
@@ -264,8 +265,12 @@ npm outdated
 npm update wrangler
 npm update
 
-# Sync gists (if CLI tool available)
-./gist-manager sync
+# Build and install CLI tools
+make build
+make install-cli
+
+# Sync gists using CLI
+gist sync
 
 # Backup cache
 cp -r .gist-cache .gist-cache.backup

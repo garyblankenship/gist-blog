@@ -14,26 +14,20 @@ wrangler login
 
 | Task | Command |
 |------|---------|
-| **Initialize** | `gist init` |
-| **Check Status** | `gist status` |
 | **Write Post** | Create `.md` file |
-| **Stage Post** | `gist add -p -d "Title #tag1" post.md` |
-| **Upload Posts** | `gist push` |
+| **Publish Post** | `gist publish -p -d "Title #tag1" post.md` |
+| **Sync Gists** | `gist sync` |
 | **View Blog** | Visit https://gary.info |
 
 ### Post Management
 
 | Task | Command |
 |------|---------|
-| **Pull Latest** | `gist pull` |
 | **List Posts** | `gist list` |
 | **Search Posts** | `gist search "keyword"` |
 | **Show Details** | `gist show abc123` |
-| **Add Tags** | `gist tag abc123 featured` |
-| **Remove Post** | `gist rm abc123` |
-| **Toggle Visibility** | `gist toggle abc123` |
-| **View Changes** | `gist diff` |
-| **Push Changes** | `gist push` |
+| **Interactive TUI** | `gist tui` |
+| **Clean Cache** | `gist clean` |
 
 ### Development
 
@@ -85,7 +79,8 @@ wrangler secret put GITHUB_TOKEN
 
 ### Key Files
 - `wrangler.toml` - Cloudflare config
-- `worker.js` - Main blog code
+- `worker.js` - Main blog code (single file with embedded CSS)
+- `cmd/gist/main.go` - CLI entry point
 - `.gist-cache/` - Local gist cache
 - `Makefile` - Automation commands
 
@@ -111,8 +106,8 @@ wrangler secret put GITHUB_TOKEN
 |-------|----------|
 | **Auth Error** | Check `GITHUB_TOKEN` is set |
 | **Deploy Fails** | Run `wrangler login` |
-| **No Posts** | Run `make sync` |
-| **Cache Stale** | Delete `.gist-cache/` folder |
+| **No Posts** | Run `gist sync` |
+| **Cache Stale** | Run `gist clean` then `gist sync` |
 | **Route Conflict** | Check Cloudflare dashboard |
 
 ### Debug Commands
@@ -148,11 +143,11 @@ curl -s -H "Authorization: token $GITHUB_TOKEN" \
 ### Backup Gists
 ```bash
 # Quick backup
-make sync
+gist sync
 cp .gist-cache/gists.json backup-$(date +%Y%m%d).json
 
 # Full export
-./gist-manager sync
+gist sync
 tar -czf gists-backup.tar.gz .gist-cache/
 ```
 

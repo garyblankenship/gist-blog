@@ -34,10 +34,14 @@ gist version
 
 ```bash
 # Build binary
-go build -o gist gist.go
+make build
 
 # Install to system path
-sudo cp gist /usr/local/bin/
+make install-cli
+
+# Or manually
+go build -o cmd/gist/main.go
+sudo cp cmd/gist/main.go /usr/local/bin/gist
 ```
 
 ## Configuration
@@ -78,35 +82,26 @@ Write your posts in Markdown:
 vim my-post.md
 ```
 
-### 2. Stage Changes
+### 2. Publish Post
 
 ```bash
-# Stage a new post (private by default)
-gist add my-post.md -d "My Post Title #tag1 #tag2"
+# Publish a new post (public by default)
+gist publish my-post.md -d "My Post Title #tag1 #tag2"
 
-# Stage as public post
-gist add -p my-post.md -d "Public Post #blog"
+# Publish as private gist
+gist publish -p my-post.md -d "Private Post #draft"
 
-# Stage multiple files
-gist add file1.md file2.md -d "Multi-file post"
+# Publish multiple files
+gist publish file1.md file2.md -d "Multi-file post"
 ```
 
-### 3. Check Status
+### 3. Sync Gists
 
 ```bash
-gist status
+# Pull latest gists from GitHub
+gist sync
 
-# Example output:
-# Changes to be pushed (2):
-#   new file:   my-post.md
-#               → My Post Title #tag1 #tag2
-#   new file:   another.md
-#               → Another Post #blog
-```
-
-### 4. Push to GitHub
-
-```bash
+# Push local changes
 gist push
 ```
 
@@ -114,19 +109,11 @@ gist push
 
 | Command | Alias | Description |
 |---------|-------|-------------|
-| `gist init` | | Initialize configuration |
-| `gist status` | `st` | Show staged changes |
-| `gist add` | | Stage files for upload |
-| `gist rm` | `remove` | Stage gist for deletion |
-| `gist tag` | | Add tags to a gist |
-| `gist push` | | Upload changes to GitHub |
-| `gist pull` | | Sync from GitHub |
+| `gist publish` | | Create new gist from file |
 | `gist list` | `ls` | List all gists |
 | `gist show` | | Show gist details |
-| `gist log` | | Show gist history |
-| `gist diff` | | Show staged changes |
-| `gist search` | | Search gists |
-| `gist reset` | | Unstage all changes |
+| `gist sync` | | Sync from GitHub |
+| `gist tui` | | Interactive TUI interface |
 | `gist config` | | Manage configuration |
 | `gist clean` | | Remove cache |
 | `gist help` | | Show help |
@@ -137,30 +124,17 @@ gist push
 ### Manage Existing Posts
 
 ```bash
-# Pull latest gists
-gist pull
-
-# List posts
+# List all posts
 gist list
 
-# Search gists
+# Search gists by keyword
 gist search docker
 
-# Show gist details
+# Show specific gist details
 gist show abc123d
-```
 
-### Modify Posts
-
-```bash
-# Add tags
-gist tag abc123d tutorial featured
-
-# Remove post
-gist rm abc123d
-
-# Toggle visibility
-gist toggle abc123d
+# Start interactive TUI
+gist tui
 ```
 
 ## Caching
@@ -217,18 +191,19 @@ export PATH="$HOME/bin:$PATH"
 ```bash
 # Test configuration
 gist config
-gist pull
 
 # Update token if needed
-gist config github.token ghp_new_token
+wrangler secret put GITHUB_TOKEN
 ```
 
 ### Cache Problems
 
 ```bash
-# Clear and rebuild cache
+# Clear local cache
 gist clean
-gist pull
+
+# Re-sync from GitHub
+gist sync
 ```
 
 ## Tips & Tricks

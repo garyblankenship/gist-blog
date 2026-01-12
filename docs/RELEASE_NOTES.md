@@ -14,6 +14,39 @@
 - **Template-Driven Enhancement**: Systematic approach to content improvement
 - **Propositional Headlines**: Each H2 heading delivers standalone value
 
+## 🔧 Architecture & Performance Improvements (Latest)
+
+### Single-File Worker Architecture
+- **Consolidated to worker.js**: Removed multiple worker files (worker-enhanced.js, worker-optimized.js)
+- **Embedded CSS**: STYLES constant contains all CSS, eliminating need for external build scripts
+- **Performance**: Reduced complexity while maintaining all features
+
+### Modern Go CLI Tools
+- **New CLI Structure**: Replaced old tools with modern cmd/gist/ package architecture
+- **BubbleTea TUI**: Interactive terminal interface for gist management
+- **Git-style Workflow**: publish, list, show, sync, tui commands
+- **XDG Compliance**: Proper configuration management following Go best practices
+
+### Performance Enhancements
+- **MetricsService**: Built-in performance metrics collection
+- **Chunked Markdown Processing**: Optimized for large content
+- **Connection Pooling**: Improved GitHub API client efficiency
+- **Cache Invalidation Hooks**: Better cache management after gist updates
+
+### Bug Fixes & Security
+- **N+1 Query Fix**: Resolved inefficient database queries
+- **Markdown Regex Improvements**: Better code block parsing
+- **Security Enhancements**: Public gists only with proper input validation
+- **Modernized Design**: Enhanced UI/UX with better typography
+
+## 📚 Documentation Updates
+
+### Enhanced Guides
+- **Updated ARCHITECTURE.md**: Reflects single-file worker and CLI structure
+- **Updated CLI_GUIDE.md**: New command reference for modern CLI tools
+- **Updated DEPLOYMENT_GUIDE.md**: Current deployment procedures
+- **Updated QUICK_REFERENCE.md**: Quick command cheat sheet
+
 ## 📚 New Documentation
 
 ### Enhancement Templates
@@ -36,11 +69,11 @@
 
 ## 📝 Commit History
 ```
-0dc1f90 feat: improve gist filtering and pagination
-214836b docs: add comprehensive content enhancement system  
-dd8f000 chore: update project memory and gitignore
-be38f91 feat: enhance markdown parsing and update dependencies
-7d6b4c5 feat: add public gist filtering for enhanced security
+af42465 deps: update package-lock.json with peer dependency flags
+ddcb36a refactor(worker): extract services and optimize performance
+4d56eda refactor: clean and reorganize documentation structure
+01140d6 docs: Consolidate deployment documentation into single DEPLOYMENT_GUIDE.md
+ea5b69f docs: add generic wrangler.toml.example
 ```
 
 ## 🎯 Key Features Now Available
@@ -49,15 +82,25 @@ be38f91 feat: enhance markdown parsing and update dependencies
 - Hashtag-based publishing control
 - Enhanced article structure with H2-only reading
 - Template-driven content improvement workflow
+- Modern CLI tools for gist management
 
 ### For Readers
 - Faster content scanning (30-second TL;DR from headings)
 - Cleaner blog without code-only gists
 - Better organized and structured articles
+- Beautiful, modern design with optimized performance
+
+### For Developers
+- Single-file worker with embedded CSS
+- Modern Go CLI with BubbleTea TUI
+- Comprehensive caching and performance metrics
+- Security-first architecture
 
 ## 🚦 Breaking Changes
 - **Gists without hashtags will no longer display** - Add hashtags to descriptions to publish
 - **Code-only files excluded by default** - Use markdown files for blog content
+- **Old CLI tools removed** - Use new `gist` commands instead of `gist-manager` or `upload-gist`
+- **Multiple worker files consolidated** - Now using single `worker.js` with embedded CSS
 
 ## 📊 Performance Metrics
 - Supports up to 1000 gists (previously 30)

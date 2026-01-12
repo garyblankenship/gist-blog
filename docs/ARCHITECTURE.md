@@ -12,13 +12,18 @@ gist-blog/
 │       ├── bug_report.md      # Bug report template
 │       └── feature_request.md # Feature request template
 │
+├── cmd/gist/                   # Go CLI application
+│   ├── main.go                # CLI entry point and command routing
+│   └── internal/              # Internal packages
+│       ├── cli/               # Command infrastructure and TUI
+│       ├── domain/            # Core business entities
+│       ├── service/           # Business services and GitHub API
+│       └── storage/           # Data layer and caching
+│
 ├── docs/                      # Documentation
 │   ├── CLI_REFERENCE.md      # Complete CLI command reference
 │   ├── QUICK_REFERENCE.md    # Quick command cheat sheet
-│   └── PROJECT_STRUCTURE.md  # This file
-│
-├── public/                    # Legacy PHP version (archived)
-│   └── index.php             # Original PHP implementation
+│   └── ARCHITECTURE.md       # This file
 │
 ├── .gist-cache/              # Local cache (git-ignored)
 │   └── gists.json           # Cached gist data
@@ -28,27 +33,19 @@ gist-blog/
 ├── .wrangler/                # Wrangler build cache (git-ignored)
 │
 ├── Core Files
-├── worker.js                 # Main Cloudflare Worker (production)
-├── worker-enhanced.js        # Enhanced version with RSS/sitemap
-├── worker-optimized.js       # Modular version using styles.js
-├── styles.js                 # Extracted CSS and layout functions
-├── build.js                  # Build script to inline styles
-│
-├── Go CLI Tools
-├── upload-gist.go           # Quick gist upload tool
-├── gist-manager.go          # Advanced management with caching
-├── gist-cli.go              # Simple gist operations
-├── gist.sh                  # Interactive shell menu
+├── worker.js                 # Single-file Cloudflare Worker (1,071 lines)
+│                           # with embedded CSS (STYLES constant)
 │
 ├── Configuration
 ├── wrangler.toml            # Cloudflare Workers config
 ├── package.json             # Node.js project config
+├── go.mod                   # Go module dependencies
 ├── Makefile                 # Automation commands
 ├── .gitignore               # Git ignore rules
 │
 ├── Documentation
 ├── README.md                # Main project documentation
-├── DEPLOY.md                # Detailed deployment guide
+├── DEPLOYMENT_GUIDE.md      # Detailed deployment guide
 ├── LICENSE                  # MIT license
 ├── CLAUDE.md                # AI assistant instructions
 └── example-post.md          # Example blog post
@@ -59,47 +56,45 @@ gist-blog/
 ### Core Worker Files
 
 #### `worker.js`
-- **Purpose**: Main production worker
-- **Features**: Basic blog functionality
+- **Purpose**: Single-file production worker containing complete blog engine
+- **Features**: All functionality including routing, caching, SEO, and rendering
+- **Architecture**: 1,071 lines with embedded CSS via STYLES constant
+- **Security**: Public gists only with proper input validation
 - **When to use**: Standard deployment
-- **Size**: ~22KB
+- **Size**: ~107KB (compressed ~400KB)
 
-#### `worker-enhanced.js`
-- **Purpose**: Feature-rich version
-- **Features**: RSS feed, sitemap, meta tags, excerpts
-- **When to use**: When you need SEO features
-- **Size**: ~28KB
+### Go CLI Application
 
-#### `worker-optimized.js`
-- **Purpose**: Modular development version
-- **Imports**: Uses `styles.js` for CSS
-- **When to use**: During development
-- **Note**: Requires build step for production
+#### `cmd/gist/main.go`
+- **Purpose**: CLI entry point and command router
+- **Commands**: publish, list, show, sync, tui, config, clean, version
+- **Features**: Git-style workflow with BubbleTea TUI
+- **Dependencies**: Modern Go 1.23+ with XDG-compliant config
 
-#### `styles.js`
-- **Purpose**: Shared CSS and layout
-- **Exports**: `CSS` constant, `createLayout` function
-- **Used by**: worker-optimized.js, build scripts
-
-### CLI Tools
-
-#### `upload-gist.go`
-- **Purpose**: Quick file uploads
-- **Usage**: `./upload-gist -p -d "Title #tags" file.md`
-- **Features**: Public/private, tags, multiple files
-
-#### `gist-manager.go`
-- **Purpose**: Advanced gist management
-- **Features**: Local cache, search, bulk operations
-- **Commands**: sync, list, search, delete, add-file, add-tag
-
-#### `gist-cli.go`
-- **Purpose**: Simple operations (deprecated)
-- **Note**: Use gist-manager.go instead
-
-#### `gist.sh`
-- **Purpose**: Interactive menu interface
-- **Features**: Guided workflows, easy for beginners
+#### Internal Package Structure
+```
+internal/
+├── cli/              # Command infrastructure and BubbleTea TUI
+│   ├── cmd/         # Individual command implementations
+│   ├── model.go     # Main TUI model
+│   ├── styles.go    # Terminal styling utilities
+│   └── keymap.go    # Keyboard shortcuts
+│
+├── domain/           # Core business entities
+│   ├── gist.go      # Gist entity with methods
+│   ├── config.go    # Configuration management
+│   └── errors.go    # Custom error types
+│
+├── service/          # Business services and GitHub API
+│   ├── github.go    # GitHub API client
+│   ├── metrics.go   # Performance metrics collection
+│   └── cache.go     # Caching service with connection pooling
+│
+└── storage/          # Data layer with caching
+    ├── cache.go     # Local cache implementation
+    ├── config.go    # Configuration storage
+    └── storage.go   # Storage interface
+```
 
 ### Configuration Files
 
@@ -118,63 +113,61 @@ gist-blog/
 ### Build Tools
 
 #### `build.js`
-- **Purpose**: Bundle styles into worker
-- **Input**: worker-optimized.js + styles.js
-- **Output**: worker.js with inlined CSS
+- **Status**: REMOVED - No longer needed with embedded CSS
+- **Previous purpose**: Bundle styles into worker
+- **Note**: CSS is now embedded directly in worker.js via STYLES constant
 
 ## Development Workflow
 
 ### 1. Local Development
 ```bash
-# Use modular version
-wrangler dev worker-optimized.js
-
-# Or standard version
+# Development server for worker testing
+npm run dev
+# or
 wrangler dev
+
+# Build and install CLI tools
+make build
+make install-cli
 ```
 
 ### 2. Making Changes
 
-**CSS Changes**: Edit `styles.js`
-```javascript
-// Add new styles to the CSS constant
-export const CSS = `
-  /* Your styles */
-`;
-```
+**Worker Changes**: Edit `worker.js` directly
+- CSS is embedded in the STYLES constant
+- All functionality in single file for simplicity
 
-**Feature Changes**: Edit appropriate worker file
-- Simple changes → `worker.js`
-- New features → `worker-enhanced.js`
-- Modular dev → `worker-optimized.js`
+**CLI Changes**: Edit files in `cmd/gist/`
+- Main entry point: `cmd/gist/main.go`
+- Individual commands in `internal/cli/cmd/`
+- Business logic in service layer
 
 ### 3. Building for Production
 ```bash
-# If using worker-optimized.js
-npm run build
+# Build CLI tools
+make build
 
-# Deploy
+# Deploy worker
 npm run deploy
+# or
+wrangler deploy
 ```
 
 ## Module Dependencies
 
 ```
 worker.js
-  └── (self-contained)
+  └── (self-contained - embedded CSS via STYLES constant)
 
-worker-enhanced.js
-  └── styles.js (for CSS import)
+cmd/gist/main.go
+  ├── internal/cli/      # TUI and command infrastructure
+  ├── internal/domain/    # Business entities
+  ├── internal/service/   # Services (GitHub, Metrics, Cache)
+  └── internal/storage/   # Data layer
 
-worker-optimized.js
-  └── styles.js (CSS + createLayout)
-
-build.js
-  ├── worker-optimized.js
-  └── styles.js
-
-CLI Tools (Go)
-  └── (self-contained binaries)
+Go Dependencies (go.mod)
+  ├── bubbletea          # Terminal UI framework
+  └── modern Go features (generics, errors.As, etc.)
 ```
 
 ## Cache Structure
@@ -215,6 +208,7 @@ case 'archive':
 
 ### 2. New View Method
 ```javascript
+// In GistBlog class
 showArchive() {
   const gists = await this.getGists();
   const archived = gists.filter(g => g.tags.includes('archive'));
@@ -224,12 +218,20 @@ showArchive() {
 
 ### 3. New CLI Command
 ```go
-// In gist-manager.go
-case "archive":
-  if archiveCmd.NArg() < 1 {
-    // Handle error
-  }
-  manager.archiveGist(archiveCmd.Arg(0))
+// In cmd/gist/internal/cli/cmd/
+package cmd
+
+import (
+  "github.com/charmbracelet/bubbletea"
+)
+
+type archiveCmd struct{}
+
+func (a archiveCmd) Run() error {
+  // Implementation in service layer
+  service := service.NewArchiveService()
+  return service.ArchiveGist(args...)
+}
 ```
 
 ## Best Practices
