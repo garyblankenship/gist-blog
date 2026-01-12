@@ -70,15 +70,15 @@ wrangler deploy
 ### 3. Create Your First Post
 
 ```bash
-# Initialize gist CLI
-gist init
+# Build and install the CLI
+make build
+make install-cli
 
 # Write a post
 echo "# My First Post\n\nHello from Gist Blog!" > post.md
 
-# Stage and upload
-gist add -p -d "My First Blog Post #introduction #hello" post.md
-gist push
+# Publish to GitHub as a public gist
+gist publish -p -d "My First Blog Post #introduction #hello" post.md
 ```
 
 Visit your blog at `https://your-domain.com` 🎉
@@ -101,40 +101,23 @@ Write your content in **Markdown** with full support for:
 - And more!
 ```
 
-### Git-Style Workflow
-
-Use familiar git-like commands:
+### CLI Commands
 
 ```bash
-# Pull latest gists from GitHub
-gist pull
+# Publish a new post
+gist publish -p -d "Post Title #tag1 #tag2" post.md
 
-# Check status
-gist status
+# List all posts
+gist list
 
-# Stage new posts
-gist add -p -d "Post Title #tag1 #tag2" post.md
-
-# Stage multiple files
-gist add file1.md file2.md -d "Multi-file post #code"
-
-# Add tags to existing gist
-gist tag <gist-id> featured tutorial
-
-# Remove a gist
-gist rm <gist-id>
-
-# Push all changes
-gist push
-
-# Search gists
-gist search "docker"
-
-# Show gist details
+# Show a specific post
 gist show <gist-id>
 
-# View recent posts
-gist log
+# Sync gists from GitHub
+gist sync
+
+# Interactive TUI
+gist tui
 ```
 
 ### Quick Commands
@@ -154,22 +137,22 @@ make search Q=term # Search posts
 ## 🏗️ Architecture
 
 ```
-├── Worker (Edge)
-│   ├── Routing          # /, /gist/:id, /tag/:tag, /rss.xml
-│   ├── GitHub API       # Fetch gists with caching
-│   ├── Markdown Parser  # Built-in markdown rendering
-│   └── KV Cache         # 5-minute TTL for performance
+├── worker.js              # Cloudflare Worker (edge deployment)
+│   ├── GistBlog class     # Main application
+│   ├── GitHubService      # GitHub API client
+│   ├── CacheService       # KV caching layer
+│   ├── MarkdownParser     # Built-in markdown rendering
+│   └── ResponseFactory    # HTTP response helpers
 │
-├── CLI Tools (Local)
-│   ├── gist             # Git-style unified CLI
-│   ├── upload-gist      # Legacy upload tool
-│   └── gist-manager     # Legacy management tool
+├── cmd/gist/              # Go CLI entry point
+│   └── main.go
 │
-└── Features
-    ├── RSS Feed         # /rss.xml for readers
-    ├── Sitemap          # /sitemap.xml for SEO
-    ├── Meta Tags        # Open Graph & Twitter cards
-    └── Pagination       # 10 posts per page
+└── internal/              # Go packages
+    ├── cli/               # Command infrastructure
+    ├── commands/          # CLI commands (publish, list, sync, show, tui)
+    ├── domain/            # Business entities
+    ├── service/           # Business logic
+    └── storage/           # Data layer (cache, config, GitHub client)
 ```
 
 ## 🛠️ Configuration
@@ -251,27 +234,16 @@ Available at `/rss.xml` for feed readers. Includes:
    ```
 3. Deploy: `wrangler deploy`
 
-### Private Gists
+### Updating Posts
 
-The GitHub token secret you configured during deployment allows access to private gists. No additional configuration needed.
-
-### Bulk Operations
-
+Use GitHub CLI to edit existing gists:
 ```bash
-# Export all gists
-gist pull
-cat .gist-cache/gists.json | jq
+gh gist edit <gist-id> updated-content.md
+```
 
-# Batch tag updates
-for id in $(gist list | grep -o '^[a-f0-9]\{7\}'); do
-  gist tag "$id" "archived"
-done
-gist push
-
-# Clean up old posts
-gist search "temp" | grep -o '^[a-f0-9]\{7\}' | \
-  xargs -I {} gist rm {}
-gist push
+Then clear the cache to see changes immediately:
+```bash
+wrangler kv key delete --binding GIST_CACHE "gist-<gist-id>"
 ```
 
 ## 🤝 Contributing
