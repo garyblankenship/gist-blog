@@ -40,11 +40,7 @@ func (c *ConfigFile) Load() (*domain.Config, error) {
 		return nil, err
 	}
 
-	config := &domain.Config{
-		GitHubUser:  configMap["github_user"],
-		GitHubToken: configMap["github_token"],
-	}
-
+	config := domain.NewConfig(configMap["github_user"], configMap["github_token"])
 	return config, nil
 }
 
@@ -70,11 +66,8 @@ func (c *ConfigFile) GetFromEnv() (*domain.Config, error) {
 	if token == "" {
 		token = os.Getenv("GITHUB_PERSONAL_ACCESS_TOKEN")
 	}
-	
-	config := &domain.Config{
-		GitHubUser:  os.Getenv("GITHUB_USER"),
-		GitHubToken: token,
-	}
+
+	config := domain.NewConfig(os.Getenv("GITHUB_USER"), token)
 
 	if !config.Valid() {
 		return nil, domain.ErrConfigMissing{Field: "GITHUB_USER or GITHUB_TOKEN"}

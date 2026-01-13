@@ -1,6 +1,8 @@
 package domain
 
 import (
+	"os"
+	"strconv"
 	"time"
 )
 
@@ -17,10 +19,43 @@ func (id GistID) String() string {
 	return string(id)
 }
 
+// CacheConfig holds cache configuration
+type CacheConfig struct {
+	TTL         time.Duration
+	CleanupFreq time.Duration
+}
+
 // Config holds GitHub authentication configuration
 type Config struct {
 	GitHubUser  string
 	GitHubToken string
+	Cache       CacheConfig
+}
+
+// NewConfig creates a new configuration with default values
+func NewConfig(user, token string) *Config {
+	ttl := 5 * time.Minute
+	if envTTL := os.Getenv("GIST_CACHE_TTL"); envTTL != "" {
+		if seconds, err := strconv.Atoi(envTTL); err == nil {
+			ttl = time.Duration(seconds) * time.Second
+		}
+	}
+
+	cleanupFreq := time.Hour
+	if envFreq := os.Getenv("GIST_CACHE_CLEANUP_FREQ"); envFreq != "" {
+		if seconds, err := strconv.Atoi(envFreq); err == nil {
+			cleanupFreq = time.Duration(seconds) * time.Second
+		}
+	}
+
+	return &Config{
+		GitHubUser:  user,
+		GitHubToken: token,
+		Cache: CacheConfig{
+			TTL:         ttl,
+			CleanupFreq: cleanupFreq,
+		},
+	}
 }
 
 // Valid checks if configuration is complete

@@ -1,6 +1,9 @@
 package domain
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
 
 // ErrFileNotFound represents a file not found error
 type ErrFileNotFound struct {
@@ -63,4 +66,13 @@ type ErrInvalidGistID struct {
 
 func (e ErrInvalidGistID) Error() string {
 	return fmt.Sprintf("invalid gist ID: %s", e.ID)
+}
+
+// ErrRateLimitExceeded represents a GitHub API rate limit exceeded error
+type ErrRateLimitExceeded struct {
+	Reset time.Time
+}
+
+func (e ErrRateLimitExceeded) Error() string {
+	return fmt.Sprintf("rate limit exceeded, resets at %s", e.Reset.Format(time.RFC3339))
 }
