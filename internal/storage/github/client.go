@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"time"
 
 	"gist/internal/domain"
@@ -18,6 +19,14 @@ type Client struct {
 	baseURL    string
 	token      string
 	username   string
+	rateLimit  rateLimitState
+	retryMax   int
+	retryWait  time.Duration
+}
+
+type rateLimitState struct {
+	remaining int
+	reset     time.Time
 }
 
 // NewClient creates a new GitHub API client
@@ -27,7 +36,75 @@ func NewClient(token, username string) *Client {
 		baseURL:    "https://api.github.com",
 		token:      token,
 		username:   username,
+		retryMax:   3,
+		retryWait: 100 * time.Millisecond,
 	}
+}
+
+// parseRateLimit extracts rate limit information from response headers
+func (c *Client) parseRateLimit(resp *http.Response) {
+	if remaining := resp.Header.Get("X-RateLimit-Remaining"); remaining != "" {
+		c.rateLimit.remaining, _ = strconv.Atoi(remaining)
+	}
+	if reset := resp.Header.Get("X-RateLimit-Reset"); reset != "" {
+		unix, _ := strconv.ParseInt(reset, 10, 64)
+		c.rateLimit.reset = time.Unix(unix, 0)
+	}
+}
+
+// apiRequest makes an authenticated request to the GitHub API with rate limiting and retry logic
+func (c *Client) apiRequest(ctx context.Context, method, url string, body io.Reader) (*http.Response, error) {
+	var lastErr error
+	for attempt := 0; attempt <= c.retryMax; attempt++ {
+		req, err := http.NewRequestWithContext(ctx, method, url, body)
+		if err != nil {
+			return nil, fmt.Errorf("create request: %w", err)
+		}
+
+		req.Header.Set("Authorization", "Bearer "+c.token)
+		req.Header.Set("Accept", "application/vnd.github.v3+json")
+		req.Header.Set("User-Agent", "Gist-CLI")
+		if body != nil {
+			req.Header.Set("Content-Type", "application/json")
+		}
+
+		resp, err := c.httpClient.Do(req)
+		if err != nil {
+			return nil, err
+		}
+
+		c.parseRateLimit(resp)
+
+		// Handle rate limiting
+		if resp.StatusCode == http.StatusForbidden && c.rateLimit.remaining == 0 {
+			resp.Body.Close()
+			waitUntil := time.Until(c.rateLimit.reset)
+			if waitUntil > 0 {
+				select {
+				case <-time.After(waitUntil):
+				case <-ctx.Done():
+					return nil, ctx.Err()
+				}
+			}
+			continue
+		}
+
+		if resp.StatusCode < 500 {
+			return resp, nil
+		}
+
+		// Server error - exponential backoff
+		resp.Body.Close()
+		lastErr = c.handleAPIError(resp)
+		wait := time.Duration(1<<uint(attempt)) * c.retryWait
+		select {
+		case <-time.After(wait):
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}
+
+	return nil, lastErr
 }
 
 // GetAll retrieves all gists for the authenticated user (both public and private)
@@ -178,22 +255,6 @@ func (c *Client) ToggleVisibility(ctx context.Context, id domain.GistID) error {
 	return fmt.Errorf("GitHub API does not support changing gist visibility after creation")
 }
 
-// apiRequest makes an authenticated request to the GitHub API
-func (c *Client) apiRequest(ctx context.Context, method, url string, body io.Reader) (*http.Response, error) {
-	req, err := http.NewRequestWithContext(ctx, method, url, body)
-	if err != nil {
-		return nil, fmt.Errorf("create request: %w", err)
-	}
-
-	req.Header.Set("Authorization", "Bearer "+c.token)
-	req.Header.Set("Accept", "application/vnd.github.v3+json")
-	req.Header.Set("User-Agent", "Gist-CLI")
-	if body != nil {
-		req.Header.Set("Content-Type", "application/json")
-	}
-
-	return c.httpClient.Do(req)
-}
 
 // handleAPIError creates a domain error from an HTTP response
 func (c *Client) handleAPIError(resp *http.Response) error {
