@@ -6,13 +6,13 @@ import (
 	"strings"
 	"time"
 
-	"gist/internal/domain"
-	"gist/internal/service"
-
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/spf13/cobra"
+	"gist/internal/domain"
+	"gist/internal/service"
 )
 
 // TuiCommand handles the 'tui' command for interactive gist management
@@ -21,33 +21,44 @@ type TuiCommand struct {
 }
 
 // NewTuiCommand creates a new TUI command
-func NewTuiCommand(service *service.GistService) *TuiCommand {
-	return &TuiCommand{
-		service: service,
+func NewTuiCommand(service *service.GistService) *cobra.Command {
+	tc := &TuiCommand{service: service}
+
+	cmd := &cobra.Command{
+		Use:   "tui",
+		Short: "Interactive TUI for managing gists",
+		Long: `Launch an interactive terminal user interface for managing your gists.
+
+The TUI provides a rich, keyboard-driven interface for:
+- Browsing all your gists
+- Filtering by tags
+- Toggling gist visibility (public/private)
+- Refreshing the gist list
+- Viewing gist details
+
+Available keys:
+  [↑/↓]     - Navigate
+  [Enter]   - Toggle visibility
+  [r]       - Refresh list
+  [?]       - Show help
+  [q/ctrl+c] - Quit`,
+		RunE: tc.Run,
 	}
+
+	return cmd
 }
 
-// Name returns the command name
-func (c *TuiCommand) Name() string {
-	return "tui"
-}
-
-// Usage returns the usage string
-func (c *TuiCommand) Usage() string {
-	return "Interactive TUI for managing gists"
-}
-
-// Execute runs the TUI command
-func (c *TuiCommand) Execute(ctx context.Context, args []string) error {
+// Run executes the TUI command
+func (c *TuiCommand) Run(cmd *cobra.Command, args []string) error {
 	p := tea.NewProgram(
 		newModel(c.service),
 		tea.WithAltScreen(),
 	)
-	
+
 	if _, err := p.Run(); err != nil {
 		return fmt.Errorf("error running TUI: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -102,14 +113,13 @@ type toggledMsg struct {
 
 // Model represents the TUI state
 type model struct {
-	service       *service.GistService
-	list          list.Model
-	gists         []domain.Gist
-	loading       bool
-	spinner       spinner.Model
-	err           error
-	status        string
-	statusTimer   *time.Timer
+	service     *service.GistService
+	list        list.Model
+	gists       []domain.Gist
+	loading     bool
+	spinner     spinner.Model
+	err         error
+	status      string
 }
 
 // Styles

@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/spf13/cobra"
 	"gist/internal/domain"
 	"gist/internal/service"
 )
@@ -16,36 +17,34 @@ type ShowCommand struct {
 }
 
 // NewShowCommand creates a new show command
-func NewShowCommand(service *service.GistService) *ShowCommand {
-	return &ShowCommand{
-		service: service,
+func NewShowCommand(service *service.GistService) *cobra.Command {
+	sc := &ShowCommand{service: service}
+
+	cmd := &cobra.Command{
+		Use:   "show <gist-id>",
+		Short: "Show gist details",
+		Long: `Show detailed information about a specific gist.
+
+The gist ID can be the full ID or a prefix (e.g., "a1b2c3d4" or "a1b2").
+If not found in cache, will fetch directly from GitHub.`,
+		Args: cobra.ExactArgs(1),
+		RunE: sc.Run,
 	}
+
+	return cmd
 }
 
-// Name returns the command name
-func (c *ShowCommand) Name() string {
-	return "show"
-}
-
-// Usage returns the usage string
-func (c *ShowCommand) Usage() string {
-	return "Show gist details"
-}
-
-// Execute runs the show command
-func (c *ShowCommand) Execute(ctx context.Context, args []string) error {
-	if len(args) == 0 {
-		return fmt.Errorf("gist ID required\nUsage: gist show <gist-id>")
-	}
-	
+// Run executes the show command
+func (c *ShowCommand) Run(cmd *cobra.Command, args []string) error {
+	ctx := context.Background()
 	gistID := args[0]
-	
+
 	// First try to get from cache
 	gists, err := c.service.ListGists(ctx)
 	if err != nil {
 		return fmt.Errorf("get gists: %w", err)
 	}
-	
+
 	// Find matching gist (supporting partial ID match)
 	var gist *domain.Gist
 	for i := range gists {
@@ -54,7 +53,7 @@ func (c *ShowCommand) Execute(ctx context.Context, args []string) error {
 			break
 		}
 	}
-	
+
 	if gist == nil {
 		// Try fetching directly from GitHub
 		fullGist, err := c.service.GetGist(ctx, gistID)
@@ -63,10 +62,10 @@ func (c *ShowCommand) Execute(ctx context.Context, args []string) error {
 		}
 		gist = fullGist
 	}
-	
+
 	// Display gist details
 	c.displayGist(gist)
-	
+
 	return nil
 }
 

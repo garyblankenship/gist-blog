@@ -8,85 +8,76 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"github.com/spf13/cobra"
 	"gist/internal/domain"
 	"gist/internal/service"
 )
 
 // ListCommand handles the 'list' command to show all gists
 type ListCommand struct {
-	service *service.GistService
+	service    *service.GistService
+	tag        string
+	showTags   bool
 }
 
 // NewListCommand creates a new list command
-func NewListCommand(service *service.GistService) *ListCommand {
-	return &ListCommand{
-		service: service,
+func NewListCommand(service *service.GistService) *cobra.Command {
+	lc := &ListCommand{service: service}
+
+	cmd := &cobra.Command{
+		Use:     "list",
+		Aliases: []string{"ls"},
+		Short:   "List all gists",
+		Long:    `List all gists from your GitHub account.
+Use --tag to filter by specific tags or --tags to show all available tags.`,
+		RunE: lc.Run,
 	}
+
+	cmd.Flags().StringVarP(&lc.tag, "tag", "t", "", "Filter by tag")
+	cmd.Flags().BoolVar(&lc.showTags, "tags", false, "Show all available tags")
+
+	return cmd
 }
 
-// Name returns the command name
-func (c *ListCommand) Name() string {
-	return "list"
-}
+// Run executes the list command
+func (c *ListCommand) Run(cmd *cobra.Command, args []string) error {
+	ctx := context.Background()
 
-// Usage returns the usage string
-func (c *ListCommand) Usage() string {
-	return "List all gists"
-}
-
-// Execute runs the list command
-func (c *ListCommand) Execute(ctx context.Context, args []string) error {
-	// Parse options
-	var tag string
-	showTags := false
-	
-	for i := 0; i < len(args); i++ {
-		switch args[i] {
-		case "-t", "--tag":
-			if i+1 < len(args) {
-				tag = args[i+1]
-				i++
-			}
-		case "--tags":
-			showTags = true
-		}
-	}
-	
 	// Get all gists
 	gists, err := c.service.ListGists(ctx)
 	if err != nil {
 		return fmt.Errorf("list gists: %w", err)
 	}
-	
+
 	if len(gists) == 0 {
 		fmt.Println("No gists found")
 		fmt.Println("Create your first gist with 'gist publish <file>'")
 		return nil
 	}
-	
+
 	// Show tags if requested
-	if showTags {
-		c.showTags(gists)
+	if c.showTags {
+		c.displayTags(gists)
 		return nil
 	}
-	
+
 	// Filter by tag if specified
-	if tag != "" {
-		gists = c.filterByTag(gists, tag)
+	if c.tag != "" {
+		gists = c.filterByTag(gists, c.tag)
 		if len(gists) == 0 {
-			fmt.Printf("No gists found with tag #%s\n", tag)
+			fmt.Printf("No gists found with tag #%s\n", c.tag)
 			return nil
 		}
 	}
-	
+
 	// Sort by creation date (newest first)
 	sort.Slice(gists, func(i, j int) bool {
 		return gists[i].CreatedAt.After(gists[j].CreatedAt)
 	})
-	
+
 	// Display gists
 	c.displayGists(gists)
-	
+
 	return nil
 }
 
@@ -137,8 +128,8 @@ func (c *ListCommand) getFileList(gist domain.Gist) string {
 	return strings.Join(files, ", ")
 }
 
-// showTags displays all unique tags from gist descriptions
-func (c *ListCommand) showTags(gists []domain.Gist) {
+// displayTags displays all unique tags from gist descriptions
+func (c *ListCommand) displayTags(gists []domain.Gist) {
 	tagMap := make(map[string]int)
 	
 	for _, gist := range gists {
