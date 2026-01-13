@@ -13,7 +13,20 @@ const CONFIG = {
   MAX_DESCRIPTION_LENGTH: 200
 };
 
-// Pre-compiled regex patterns for performance
+// Import marked.js from CDN
+const MARKED_URL = 'https://cdn.jsdelivr.net/npm/marked@15.0.0/lib/marked.esm.js';
+let marked = null;
+
+// Initialize marked.js
+async function initMarked() {
+  if (!marked) {
+    marked = await import(MARKED_URL);
+    marked.marked.use({ gfm: true, breaks: false, pedantic: false });
+  }
+  return marked;
+}
+
+// Pre-compiled regex patterns for HTML escaping only
 const ESCAPE_REGEX = /[&<>"']/g;
 const ESCAPE_REPLACEMENTS = {
   '&': '&amp;',
@@ -21,39 +34,6 @@ const ESCAPE_REPLACEMENTS = {
   '>': '&gt;',
   '"': '&quot;',
   "'": '&#39;'
-};
-
-// Markdown regex patterns (pre-compiled)
-const MARKDOWN_PATTERNS = {
-  codeBlocks: /```(\w+)?\n?(.*?)```/gs,
-  inlineCode: /`([^`]+)`/g,
-  headers: [
-    [/^##### (.+)$/gm, '<h5>$1</h5>'],
-    [/^#### (.+)$/gm, '<h4>$1</h4>'],
-    [/^### (.+)$/gm, '<h3>$1</h3>'],
-    [/^## (.+)$/gm, '<h2>$1</h2>'],
-    [/^# (.+)$/gm, '<h1>$1</h1>']
-  ],
-  boldItalic: [
-    [/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>'],
-    [/\*\*(.+?)\*\*/g, '<strong>$1</strong>'],
-    [/\*(.+?)\*/g, '<em>$1</em>'],
-    [/___(.+?)___/g, '<strong><em>$1</em></strong>'],
-    [/__(.+?)__/g, '<strong>$1</strong>'],
-    [/_(.+?)_/g, '<em>$1</em>']
-  ],
-  links: [/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>'],
-  images: [/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" />'],
-  blockquotes: [/^> (.+)$/gm, '<blockquote>$1</blockquote>'],
-  horizontalRules: [/^---$/gm, '<hr>'],
-  [/\*\*\*$/gm]: '<hr>',
-  lists: [
-    [/^\* (.+)$/gm, '<li>$1</li>'],
-    [/^- (.+)$/gm, '<li>$1</li>'],
-    [/^\d+\. (.+)$/gm, '<li>$1</li>']
-  ],
-  listWrap: /(<li>.*<\/li>\s*)+/s,
-  blockElements: /^<(h[1-6]|pre|blockquote|ul|ol|hr|li)|<\/(h[1-6]|pre|blockquote|ul|ol)>$/g
 };
 
 const STYLES = `<style>
@@ -1114,7 +1094,13 @@ const Utils = {
 
   escapeHtml(text) {
     if (!text) return '';
-    return String(text).replace(ESCAPE_REGEX, match => ESCAPE_REPLACEMENTS[match]);
+    return String(text).replace(/[&<>"']/g, match => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;'
+    }[match]));
   },
 
   // Optimized excerpt generation - single pass
@@ -1182,149 +1168,9 @@ class MetricsService {
 
 // ===== PARSERS =====
 class MarkdownParser {
-  parseMarkdown(text) {
-    // Process large content in chunks
-    if (text.length > 10240) {  // 10KB threshold
-      return this.parseInChunks(text);
-    }
-    return this.parseStandard(text);
-  }
-
-  parseStandard(text) {
-    // First, extract and protect code blocks
-    const codeBlocks = [];
-    let html = text;
-
-    // Extract code blocks and replace with placeholders
-    html = html.replace(MARKDOWN_PATTERNS.codeBlocks, (match, language, code) => {
-      const placeholder = `###CODEBLOCK${codeBlocks.length}###`;
-      const lang = language ? language.toLowerCase() : '';
-      const langClass = lang ? ` class="language-${lang}"` : '';
-      codeBlocks.push(`<pre><code${langClass}>${Utils.escapeHtml(code.trim())}</code></pre>`);
-      return placeholder;
-    });
-
-    // Extract inline code and protect it
-    const inlineCode = [];
-    html = html.replace(MARKDOWN_PATTERNS.inlineCode, (match, code) => {
-      const placeholder = `###INLINECODE${inlineCode.length}###`;
-      inlineCode.push(`<code>${Utils.escapeHtml(code)}</code>`);
-      return placeholder;
-    });
-
-    // Now escape HTML for the rest of the content
-    html = Utils.escapeHtml(html);
-
-    // Apply all transformations in order
-    // Headers
-    for (const [pattern, replacement] of MARKDOWN_PATTERNS.headers) {
-      html = html.replace(pattern, replacement);
-    }
-
-    // Bold and italic
-    for (const [pattern, replacement] of MARKDOWN_PATTERNS.boldItalic) {
-      html = html.replace(pattern, replacement);
-    }
-
-    // Links
-    html = html.replace(MARKDOWN_PATTERNS.links[0], MARKDOWN_PATTERNS.links[1]);
-
-    // Images
-    html = html.replace(MARKDOWN_PATTERNS.images[0], MARKDOWN_PATTERNS.images[1]);
-
-    // Blockquotes
-    html = html.replace(MARKDOWN_PATTERNS.blockquotes[0], MARKDOWN_PATTERNS.blockquotes[1]);
-
-    // Horizontal rules
-    html = html.replace(MARKDOWN_PATTERNS.horizontalRules[0], MARKDOWN_PATTERNS.horizontalRules[1]);
-    html = html.replace(/\*\*\*$/gm, '<hr>');
-
-    // Lists
-    for (const [pattern, replacement] of MARKDOWN_PATTERNS.lists) {
-      html = html.replace(pattern, replacement);
-    }
-
-    // Wrap consecutive list items
-    html = html.replace(MARKDOWN_PATTERNS.listWrap, '<ul>$&</ul>');
-
-    // Paragraphs
-    const lines = html.split('\n');
-    const result = [];
-    let paragraph = [];
-    let inBlock = false;
-
-    for (const line of lines) {
-      const trimmed = line.trim();
-
-      // Check if line is a block element
-      if (MARKDOWN_PATTERNS.blockElements.test(trimmed)) {
-        // Close any open paragraph
-        if (paragraph.length) {
-          result.push('<p>' + paragraph.join('\n') + '</p>');
-          paragraph = [];
-        }
-        result.push(line);
-        inBlock = /<(pre|blockquote|ul|ol)/.test(line) && !/<\/(pre|blockquote|ul|ol)>/.test(line);
-      } else if (trimmed === '') {
-        // Empty line - close paragraph
-        if (paragraph.length) {
-          result.push('<p>' + paragraph.join('\n') + '</p>');
-          paragraph = [];
-        }
-      } else {
-        // Regular text line
-        if (!inBlock) {
-          paragraph.push(line);
-        } else {
-          result.push(line);
-        }
-      }
-    }
-
-    // Close any remaining paragraph
-    if (paragraph.length) {
-      result.push('<p>' + paragraph.join('\n') + '</p>');
-    }
-
-    html = result.join('\n');
-
-    // Restore code blocks
-    codeBlocks.forEach((block, index) => {
-      html = html.replace(`###CODEBLOCK${index}###`, block);
-    });
-
-    // Restore inline code
-    inlineCode.forEach((code, index) => {
-      html = html.replace(`###INLINECODE${index}###`, code);
-    });
-
-    return html;
-  }
-
-  parseInChunks(text) {
-    const chunks = this.splitIntoChunks(text, 2048);
-    return chunks.map(chunk => this.parseStandard(chunk)).join('');
-  }
-
-  splitIntoChunks(text, chunkSize) {
-    const chunks = [];
-    let remaining = text;
-
-    while (remaining.length > 0) {
-      // Try to split at paragraph boundary
-      let splitPoint = chunkSize;
-      if (remaining.length > chunkSize) {
-        const newlinePos = remaining.lastIndexOf('\n\n', chunkSize);
-        if (newlinePos > chunkSize / 2) {
-          splitPoint = newlinePos + 2;
-        }
-      }
-
-      chunks.push(remaining.substring(0, splitPoint));
-      remaining = remaining.substring(splitPoint);
-    }
-
-    return chunks;
+  async parseMarkdown(text) {
+    await initMarked();
+    return marked.marked.parse(text);
   }
 }
 
@@ -1578,7 +1424,7 @@ class GistBlog {
 
     const html = this.render(
       `${gist.description} - ${this.siteName}`,
-      this.gistView(gist),
+      await this.gistView(gist),
       {
         description: gist.excerpt,
         canonicalUrl: `${this.siteUrl}/gist/${gist.id}`,
@@ -1744,11 +1590,16 @@ class GistBlog {
     `;
   }
 
-  gistView(gist) {
+  async gistView(gist) {
     const isMarkdown = gist.filename && (
-      gist.filename.toLowerCase().endsWith('.md') || 
+      gist.filename.toLowerCase().endsWith('.md') ||
       gist.filename.toLowerCase().endsWith('.markdown')
     );
+
+    let markdownContent = '';
+    if (isMarkdown) {
+      markdownContent = await this.markdownParser.parseMarkdown(gist.content);
+    }
 
     return `
       <nav class="breadcrumb">
@@ -1782,7 +1633,7 @@ class GistBlog {
           ` : ''}
           ${isMarkdown ? `
             <div class="markdown-content">
-              ${this.markdownParser.parseMarkdown(gist.content)}
+              ${markdownContent}
             </div>
           ` : `
             <pre><code>${Utils.escapeHtml(gist.content)}</code></pre>
