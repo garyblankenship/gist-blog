@@ -12,16 +12,15 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/spf13/cobra"
 	"gist/internal/domain"
-	"gist/internal/service"
 )
 
 // TuiCommand handles the 'tui' command for interactive gist management
 type TuiCommand struct {
-	service *service.GistService
+	service GistService
 }
 
 // NewTuiCommand creates a new TUI command
-func NewTuiCommand(service *service.GistService) *cobra.Command {
+func NewTuiCommand(service GistService) *cobra.Command {
 	tc := &TuiCommand{service: service}
 
 	cmd := &cobra.Command{
@@ -113,7 +112,7 @@ type toggledMsg struct {
 
 // Model represents the TUI state
 type model struct {
-	service     *service.GistService
+	service     GistService
 	list        list.Model
 	gists       []domain.Gist
 	loading     bool
@@ -143,7 +142,7 @@ var (
 		Foreground(lipgloss.Color("241"))
 )
 
-func newModel(service *service.GistService) model {
+func newModel(service GistService) model {
 	// Initialize list
 	items := []list.Item{}
 	l := list.New(items, list.NewDefaultDelegate(), 0, 0)

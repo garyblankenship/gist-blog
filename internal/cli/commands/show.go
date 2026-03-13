@@ -8,16 +8,15 @@ import (
 
 	"github.com/spf13/cobra"
 	"gist/internal/domain"
-	"gist/internal/service"
 )
 
 // ShowCommand handles the 'show' command to display gist details
 type ShowCommand struct {
-	service *service.GistService
+	service GistService
 }
 
 // NewShowCommand creates a new show command
-func NewShowCommand(service *service.GistService) *cobra.Command {
+func NewShowCommand(service GistService) *cobra.Command {
 	sc := &ShowCommand{service: service}
 
 	cmd := &cobra.Command{

@@ -5,16 +5,15 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"gist/internal/service"
 )
 
 // SyncCommand handles the 'sync' command to sync gists from GitHub
 type SyncCommand struct {
-	service *service.GistService
+	service GistService
 }
 
 // NewSyncCommand creates a new sync command
-func NewSyncCommand(service *service.GistService) *cobra.Command {
+func NewSyncCommand(service GistService) *cobra.Command {
 	sc := &SyncCommand{service: service}
 
 	cmd := &cobra.Command{

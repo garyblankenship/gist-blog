@@ -5,19 +5,18 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"gist/internal/service"
 )
 
 // PublishCommand handles the 'publish' command to create gists from files
 type PublishCommand struct {
-	service     *service.GistService
+	service     GistService
 	description string
 	public      bool
 	files       []string
 }
 
 // NewPublishCommand creates a new publish command
-func NewPublishCommand(service *service.GistService) *cobra.Command {
+func NewPublishCommand(service GistService) *cobra.Command {
 	pc := &PublishCommand{service: service}
 
 	cmd := &cobra.Command{

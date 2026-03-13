@@ -10,18 +10,17 @@ import (
 
 	"github.com/spf13/cobra"
 	"gist/internal/domain"
-	"gist/internal/service"
 )
 
 // ListCommand handles the 'list' command to show all gists
 type ListCommand struct {
-	service    *service.GistService
+	service    GistService
 	tag        string
 	showTags   bool
 }
 
 // NewListCommand creates a new list command
-func NewListCommand(service *service.GistService) *cobra.Command {
+func NewListCommand(service GistService) *cobra.Command {
 	lc := &ListCommand{service: service}
 
 	cmd := &cobra.Command{
