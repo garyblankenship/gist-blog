@@ -37,7 +37,7 @@ func NewClient(token, username string) *Client {
 		token:      token,
 		username:   username,
 		retryMax:   3,
-		retryWait: 100 * time.Millisecond,
+		retryWait:  100 * time.Millisecond,
 	}
 }
 
@@ -111,7 +111,7 @@ func (c *Client) apiRequest(ctx context.Context, method, url string, body io.Rea
 func (c *Client) GetAll(ctx context.Context) ([]domain.Gist, error) {
 	// Use authenticated endpoint to get both public and private gists
 	url := fmt.Sprintf("%s/gists", c.baseURL)
-	
+
 	resp, err := c.apiRequest(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, err
@@ -133,7 +133,7 @@ func (c *Client) GetAll(ctx context.Context) ([]domain.Gist, error) {
 // GetByID retrieves a specific gist by ID
 func (c *Client) GetByID(ctx context.Context, id domain.GistID) (*domain.Gist, error) {
 	url := fmt.Sprintf("%s/gists/%s", c.baseURL, id.String())
-	
+
 	resp, err := c.apiRequest(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, err
@@ -143,7 +143,7 @@ func (c *Client) GetByID(ctx context.Context, id domain.GistID) (*domain.Gist, e
 	if resp.StatusCode == http.StatusNotFound {
 		return nil, domain.ErrGistNotFound{ID: id}
 	}
-	
+
 	if resp.StatusCode != http.StatusOK {
 		return nil, c.handleAPIError(resp)
 	}
@@ -225,7 +225,7 @@ func (c *Client) Update(ctx context.Context, gist *domain.Gist) error {
 // Delete removes a gist
 func (c *Client) Delete(ctx context.Context, id domain.GistID) error {
 	url := fmt.Sprintf("%s/gists/%s", c.baseURL, id.String())
-	
+
 	resp, err := c.apiRequest(ctx, "DELETE", url, nil)
 	if err != nil {
 		return err
@@ -251,35 +251,50 @@ func (c *Client) ToggleVisibility(ctx context.Context, id domain.GistID) error {
 	// The 'public' field is only settable at creation time
 	// This will return success but won't actually change visibility
 	_ = gist
-	
+
 	return fmt.Errorf("GitHub API does not support changing gist visibility after creation")
 }
 
+// maxAPIErrorBodyBytes caps how much of an API error response body is read
+// into the returned domain error so a large or malicious response cannot
+// inflate memory or the error message.
+const maxAPIErrorBodyBytes = 64 * 1024
 
-// handleAPIError creates a domain error from an HTTP response
+// handleAPIError creates a domain error from an HTTP response. The response
+// body is capped at maxAPIErrorBodyBytes; if truncation occurs a marker is
+// appended so callers can tell the message is incomplete.
 func (c *Client) handleAPIError(resp *http.Response) error {
-	body, _ := io.ReadAll(resp.Body)
+	body, _ := io.ReadAll(io.LimitReader(resp.Body, maxAPIErrorBodyBytes+1))
+	truncated := false
+	if len(body) > maxAPIErrorBodyBytes {
+		body = body[:maxAPIErrorBodyBytes]
+		truncated = true
+	}
+	msg := string(body)
+	if truncated {
+		msg += "...[truncated]"
+	}
 	return domain.ErrAPIRequest{
 		StatusCode: resp.StatusCode,
-		Message:    string(body),
+		Message:    msg,
 	}
 }
 
 // formatFiles converts domain.GistFile map to GitHub API format
 func (c *Client) formatFiles(files map[string]domain.GistFile) map[string]map[string]string {
 	apiFiles := make(map[string]map[string]string)
-	
+
 	for filename, file := range files {
 		// Use the filename from the key, but prefer the one in the file struct if set
 		name := filename
 		if file.Filename != "" {
 			name = file.Filename
 		}
-		
+
 		apiFiles[name] = map[string]string{
 			"content": file.Content,
 		}
 	}
-	
+
 	return apiFiles
 }
