@@ -71,13 +71,13 @@ type GistFile struct {
 
 // Gist represents a GitHub gist
 type Gist struct {
-	ID          GistID               `json:"id"`
-	Description string               `json:"description"`
-	Public      bool                 `json:"public"`
-	Files       map[string]GistFile  `json:"files"`
-	CreatedAt   time.Time            `json:"created_at"`
-	UpdatedAt   time.Time            `json:"updated_at"`
-	HTMLURL     string               `json:"html_url"`
+	ID          GistID              `json:"id"`
+	Description string              `json:"description"`
+	Public      bool                `json:"public"`
+	Files       map[string]GistFile `json:"files"`
+	CreatedAt   time.Time           `json:"created_at"`
+	UpdatedAt   time.Time           `json:"updated_at"`
+	HTMLURL     string              `json:"html_url"`
 }
 
 // NewGist creates a new gist with validation
@@ -99,35 +99,4 @@ func (g *Gist) AddFile(filename, content string) {
 		Filename: filename,
 	}
 	g.UpdatedAt = time.Now()
-}
-
-// StagedFile represents a file that has been staged for operations
-type StagedFile struct {
-	Path        string    `json:"path"`
-	Description string    `json:"description"`
-	Public      bool      `json:"public"`
-	Action      string    `json:"action"` // add, update, remove
-	GistID      GistID    `json:"gist_id,omitempty"`
-	StagedAt    time.Time `json:"staged_at"`
-}
-
-// NewStagedFile creates a new staged file
-func NewStagedFile(path, description string, public bool, action string) *StagedFile {
-	return &StagedFile{
-		Path:        path,
-		Description: description,
-		Public:      public,
-		Action:      action,
-		StagedAt:    time.Now(),
-	}
-}
-
-// Valid checks if the staged file is valid
-func (sf StagedFile) Valid() bool {
-	validActions := map[string]bool{
-		"add":    true,
-		"update": true,
-		"remove": true,
-	}
-	return sf.Path != "" && validActions[sf.Action]
 }

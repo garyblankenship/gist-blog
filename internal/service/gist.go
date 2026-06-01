@@ -19,7 +19,6 @@ type GistService struct {
 // NewGistService creates a new gist service with injected dependencies
 func NewGistService(
 	gistRepo GistRepository,
-	_ StagingRepository, // Deprecated - will be removed
 	cacheRepo CacheRepository,
 	fs FileSystem,
 	config *domain.Config,
@@ -43,13 +42,13 @@ func (s *GistService) PublishFiles(ctx context.Context, paths []string, descript
 
 	// Create gist with files
 	gist := domain.NewGist("", description, public)
-	
+
 	for _, path := range paths {
 		content, err := s.fs.ReadFile(path)
 		if err != nil {
 			return "", fmt.Errorf("read file %s: %w", path, err)
 		}
-		
+
 		filename := filepath.Base(path)
 		gist.AddFile(filename, string(content))
 	}
@@ -86,21 +85,11 @@ func (s *GistService) ListGists(ctx context.Context) ([]domain.Gist, error) {
 	return gists, nil
 }
 
-// ToggleGistVisibility toggles public/private status of a gist
-func (s *GistService) ToggleGistVisibility(ctx context.Context, id string) error {
-	gistID := domain.GistID(id)
-	if !gistID.Valid() {
-		return domain.ErrInvalidGistID{ID: id}
-	}
-
-	return s.gistRepo.ToggleVisibility(ctx, gistID)
-}
-
 // SyncGists forces a refresh of gists from GitHub
 func (s *GistService) SyncGists(ctx context.Context) ([]domain.Gist, error) {
 	// Clear cache to force refresh
 	_ = s.cacheRepo.Clear()
-	
+
 	// Fetch fresh data from GitHub
 	return s.ListGists(ctx)
 }
@@ -134,4 +123,3 @@ func (s *GistService) UpdateGist(ctx context.Context, id domain.GistID, gist dom
 
 	return nil
 }
-
