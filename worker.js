@@ -1,22 +1,22 @@
-
-import { STYLES } from './template.js';
+import { STYLES } from "./template.js";
 
 // ===== CONSTANTS =====
 const CONFIG = {
   CACHE_TTL: 300, // 5 minutes
   ITEMS_PER_PAGE: 10,
-  API_BASE_URL: 'https://api.github.com',
-  GITHUB_USER_AGENT: 'Cloudflare-Worker-Gist-Blog',
-  GITHUB_ACCEPT_HEADER: 'application/vnd.github.v3+json',
+  API_BASE_URL: "https://api.github.com",
+  GITHUB_USER_AGENT: "Cloudflare-Worker-Gist-Blog",
+  GITHUB_ACCEPT_HEADER: "application/vnd.github.v3+json",
   RSS_LIMIT: 20,
   MAX_PAGES: 10,
-  DEFAULT_SITE_URL: 'https://your-domain.com',
-  DEFAULT_SITE_NAME: 'Your Gist Blog',
-  MAX_DESCRIPTION_LENGTH: 200
+  DEFAULT_SITE_URL: "https://your-domain.com",
+  DEFAULT_SITE_NAME: "Your Gist Blog",
+  MAX_DESCRIPTION_LENGTH: 200,
 };
 
 // Import marked.js from CDN
-const MARKED_URL = 'https://cdn.jsdelivr.net/npm/marked@15.0.0/lib/marked.esm.js';
+const MARKED_URL =
+  "https://cdn.jsdelivr.net/npm/marked@15.0.0/lib/marked.esm.js";
 let marked = null;
 
 // Initialize marked.js
@@ -28,18 +28,6 @@ async function initMarked() {
   return marked;
 }
 
-// Pre-compiled regex patterns for HTML escaping only
-const ESCAPE_REGEX = /[&<>"']/g;
-const ESCAPE_REPLACEMENTS = {
-  '&': '&amp;',
-  '<': '&lt;',
-  '>': '&gt;',
-  '"': '&quot;',
-  "'": '&#39;'
-};
-
-
-
 // ===== SERVICES =====
 class CacheService {
   constructor(env, metricsService) {
@@ -50,7 +38,9 @@ class CacheService {
   async get(cacheKey) {
     if (!this.env.GIST_CACHE) return null;
 
-    const cached = await this.env.GIST_CACHE.get(cacheKey, 'json');
+    const cached = await this.env.GIST_CACHE.get(cacheKey, "json").catch(
+      () => null,
+    );
     const now = Date.now();
     if (cached && cached.timestamp > now - CONFIG.CACHE_TTL * 1000) {
       // Record metrics if available
@@ -66,12 +56,16 @@ class CacheService {
     if (!this.env.GIST_CACHE) return;
 
     const now = Date.now();
-    await this.env.GIST_CACHE.put(cacheKey, JSON.stringify({
-      timestamp: now,
-      data: data
-    }), {
-      expirationTtl: CONFIG.CACHE_TTL
-    });
+    await this.env.GIST_CACHE.put(
+      cacheKey,
+      JSON.stringify({
+        timestamp: now,
+        data: data,
+      }),
+      {
+        expirationTtl: CONFIG.CACHE_TTL,
+      },
+    );
   }
 
   async delete(cacheKey) {
@@ -83,7 +77,7 @@ class CacheService {
     // Delete the gist detail cache
     await this.delete(`gist-${id}`);
     // Delete the list cache (tags may have changed)
-    await this.delete('gists-list');
+    await this.delete("gists-list");
   }
 }
 
@@ -92,14 +86,14 @@ class GitHubService {
     this.githubUser = githubUser;
     this.githubToken = githubToken;
     this.activeRequests = 0;
-    this.maxConcurrent = 10;  // Max 10 concurrent requests
+    this.maxConcurrent = 10; // Max 10 concurrent requests
     this.requestQueue = [];
   }
 
   async fetchWithLimit(url, options) {
     // Wait if we've hit the concurrent limit
     while (this.activeRequests >= this.maxConcurrent) {
-      await new Promise(resolve => setTimeout(resolve, 10));
+      await new Promise((resolve) => setTimeout(resolve, 10));
     }
 
     this.activeRequests++;
@@ -112,12 +106,12 @@ class GitHubService {
 
   getHeaders() {
     const headers = {
-      'User-Agent': CONFIG.GITHUB_USER_AGENT,
-      'Accept': CONFIG.GITHUB_ACCEPT_HEADER
+      "User-Agent": CONFIG.GITHUB_USER_AGENT,
+      Accept: CONFIG.GITHUB_ACCEPT_HEADER,
     };
 
     if (this.githubToken) {
-      headers['Authorization'] = `token ${this.githubToken}`;
+      headers["Authorization"] = `token ${this.githubToken}`;
     }
 
     return headers;
@@ -132,11 +126,13 @@ class GitHubService {
     while (hasMore) {
       const response = await this.fetchWithLimit(
         `${CONFIG.API_BASE_URL}/users/${this.githubUser}/gists?per_page=100&page=${page}`,
-        { headers }
+        { headers },
       );
 
       if (!response.ok) {
-        throw new Error('Failed to fetch gists from GitHub. Check your username and token.');
+        throw new Error(
+          "Failed to fetch gists from GitHub. Check your username and token.",
+        );
       }
 
       const gists = await response.json();
@@ -160,7 +156,7 @@ class GitHubService {
     const headers = this.getHeaders();
     const response = await this.fetchWithLimit(
       `${CONFIG.API_BASE_URL}/gists/${id}`,
-      { headers }
+      { headers },
     );
 
     if (!response.ok) {
@@ -173,32 +169,36 @@ class GitHubService {
 }
 
 class ResponseFactory {
-  static html(content, status = 200, cacheControl = 'public, max-age=300, s-maxage=3600') {
+  static html(
+    content,
+    status = 200,
+    cacheControl = "public, max-age=300, s-maxage=3600",
+  ) {
     return new Response(content, {
       status,
       headers: {
-        'Content-Type': 'text/html;charset=UTF-8',
-        'Cache-Control': cacheControl,
-        'X-Content-Type-Options': 'nosniff'
-      }
+        "Content-Type": "text/html;charset=UTF-8",
+        "Cache-Control": cacheControl,
+        "X-Content-Type-Options": "nosniff",
+      },
     });
   }
 
   static rss(content) {
     return new Response(content, {
       headers: {
-        'Content-Type': 'application/rss+xml;charset=UTF-8',
-        'Cache-Control': 'max-age=3600'
-      }
+        "Content-Type": "application/rss+xml;charset=UTF-8",
+        "Cache-Control": "max-age=3600",
+      },
     });
   }
 
   static xml(content) {
     return new Response(content, {
       headers: {
-        'Content-Type': 'application/xml;charset=UTF-8',
-        'Cache-Control': 'max-age=3600'
-      }
+        "Content-Type": "application/xml;charset=UTF-8",
+        "Cache-Control": "max-age=3600",
+      },
     });
   }
 
@@ -206,10 +206,10 @@ class ResponseFactory {
     return new Response(content, {
       status,
       headers: {
-        'Content-Type': 'text/html;charset=UTF-8',
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'X-Content-Type-Options': 'nosniff'
-      }
+        "Content-Type": "text/html;charset=UTF-8",
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        "X-Content-Type-Options": "nosniff",
+      },
     });
   }
 
@@ -217,10 +217,10 @@ class ResponseFactory {
     return new Response(content, {
       status: 404,
       headers: {
-        'Content-Type': 'text/html;charset=UTF-8',
-        'Cache-Control': 'public, max-age=60',
-        'X-Content-Type-Options': 'nosniff'
-      }
+        "Content-Type": "text/html;charset=UTF-8",
+        "Cache-Control": "public, max-age=60",
+        "X-Content-Type-Options": "nosniff",
+      },
     });
   }
 }
@@ -229,37 +229,41 @@ class ResponseFactory {
 const Utils = {
   formatDate(dateString) {
     const date = new Date(dateString);
-    const options = { year: 'numeric', month: 'short', day: 'numeric' };
-    return date.toLocaleDateString('en-US', options);
+    const options = { year: "numeric", month: "short", day: "numeric" };
+    return date.toLocaleDateString("en-US", options);
   },
 
   escapeHtml(text) {
-    if (!text) return '';
-    return String(text).replace(/[&<>"']/g, match => ({
-      '&': '&amp;',
-      '<': '&lt;',
-      '>': '&gt;',
-      '"': '&quot;',
-      "'": '&#39;'
-    }[match]));
+    if (!text) return "";
+    return String(text).replace(
+      /[&<>"']/g,
+      (match) =>
+        ({
+          "&": "&amp;",
+          "<": "&lt;",
+          ">": "&gt;",
+          '"': "&quot;",
+          "'": "&#39;",
+        })[match],
+    );
   },
 
   // Optimized excerpt generation - single pass
   generateExcerpt(content) {
-    if (!content) return '';
+    if (!content) return "";
 
     let excerpt = content
-      .replace(/^#.*$/gm, '')  // Remove markdown headers
-      .replace(/```[\s\S]*?```/g, '') // Remove code blocks
-      .replace(/\n+/g, ' ')           // Replace newlines with spaces
+      .replace(/^#.*$/gm, "") // Remove markdown headers
+      .replace(/```[\s\S]*?```/g, "") // Remove code blocks
+      .replace(/\n+/g, " ") // Replace newlines with spaces
       .trim();
 
     if (excerpt.length > CONFIG.MAX_DESCRIPTION_LENGTH) {
-      excerpt = excerpt.substring(0, CONFIG.MAX_DESCRIPTION_LENGTH) + '...';
+      excerpt = excerpt.substring(0, CONFIG.MAX_DESCRIPTION_LENGTH) + "...";
     }
 
     return excerpt;
-  }
+  },
 };
 
 // ===== METRICS =====
@@ -295,14 +299,19 @@ class MetricsService {
 
   getStats() {
     return {
-      cacheHitRate: this.cacheHits + this.cacheMisses > 0
-        ? ((this.cacheHits / (this.cacheHits + this.cacheMisses)) * 100).toFixed(1) + '%'
-        : '0%',
+      cacheHitRate:
+        this.cacheHits + this.cacheMisses > 0
+          ? (
+              (this.cacheHits / (this.cacheHits + this.cacheMisses)) *
+              100
+            ).toFixed(1) + "%"
+          : "0%",
       apiCalls: this.apiCalls,
-      avgRequestTime: this.requestCount > 0
-        ? (this.totalRequestTime / this.requestCount).toFixed(1) + 'ms'
-        : '0ms',
-      requestCount: this.requestCount
+      avgRequestTime:
+        this.requestCount > 0
+          ? (this.totalRequestTime / this.requestCount).toFixed(1) + "ms"
+          : "0ms",
+      requestCount: this.requestCount,
     };
   }
 }
@@ -311,7 +320,11 @@ class MetricsService {
 class MarkdownParser {
   async parseMarkdown(text) {
     await initMarked();
-    return marked.marked.parse(text);
+    try {
+      return marked.marked.parse(text);
+    } catch {
+      return `<pre>${Utils.escapeHtml(text)}</pre>`;
+    }
   }
 }
 
@@ -319,7 +332,7 @@ export default {
   async fetch(request, env, ctx) {
     const blog = new GistBlog(env.GITHUB_USER, env.GITHUB_TOKEN, env);
     return await blog.handleRequest(request, ctx);
-  }
+  },
 };
 
 class GistBlog {
@@ -340,26 +353,26 @@ class GistBlog {
     try {
       const url = new URL(request.url);
       const path = url.pathname.slice(1);
-      const segments = path ? path.split('/') : [''];
+      const segments = path ? path.split("/") : [""];
 
       // Handle special routes
-      if (path === 'rss.xml' || path === 'feed.xml') {
+      if (path === "rss.xml" || path === "feed.xml") {
         return await this.generateRSS();
       }
-      if (path === 'sitemap.xml') {
+      if (path === "sitemap.xml") {
         return await this.generateSitemap();
       }
 
       switch (segments[0]) {
-        case '':
-        case 'index':
+        case "":
+        case "index":
           return await this.showIndex(url);
-        case 'gist':
-          return await this.showGist(segments[1] || '');
-        case 'tag':
-          return await this.showTag(segments[1] || '', url);
-        case 'vybe':
-          return await this.showStaticPage('vybe');
+        case "gist":
+          return await this.showGist(segments[1] || "");
+        case "tag":
+          return await this.showTag(segments[1] || "", url);
+        case "vybe":
+          return await this.showStaticPage("vybe");
         default:
           return this.show404();
       }
@@ -372,7 +385,7 @@ class GistBlog {
   }
 
   async getGists() {
-    const cacheKey = 'gists-list';
+    const cacheKey = "gists-list";
 
     // Check cache
     const cached = await this.cacheService.get(cacheKey);
@@ -382,20 +395,21 @@ class GistBlog {
 
     // Fetch from GitHub
     const allGists = await this.githubService.fetchUserGists();
-    
+
     // Filter to only show public gists on the blog
-    const publicGists = allGists.filter(gist => gist.public === true);
-    
-    const processed = publicGists.map(gist => this.processGist(gist))
-                                  .filter(gist => {
-                                    // Filter out gists without proper blog content
-                                    // MUST have tags (hashtags in description) to be included as a blog post
-                                    const hasTags = gist.tags && gist.tags.length > 0;
-                                    
-                                    // Only include gists that have at least one tag
-                                    // This ensures only intentionally published blog posts appear
-                                    return hasTags;
-                                  });
+    const publicGists = allGists.filter((gist) => gist.public === true);
+
+    const processed = publicGists
+      .map((gist) => this.processGist(gist))
+      .filter((gist) => {
+        // Filter out gists without proper blog content
+        // MUST have tags (hashtags in description) to be included as a blog post
+        const hasTags = gist.tags && gist.tags.length > 0;
+
+        // Only include gists that have at least one tag
+        // This ensures only intentionally published blog posts appear
+        return hasTags;
+      });
 
     // Sort by created date (newest first)
     processed.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
@@ -407,20 +421,20 @@ class GistBlog {
   }
 
   processGist(gist) {
-    const description = gist.description || '';
+    const description = gist.description || "";
     const tags = [];
 
     // Extract tags and clean description
-    const cleanDesc = description.replace(/#(\w+)/g, (match, tag) => {
+    const cleanDesc = description.replace(/#([\w-]+)/g, (match, tag) => {
       tags.push(tag);
-      return '';
+      return "";
     });
 
     // Get first file content
-    let content = '';
-    let filename = '';
+    let content = "";
+    let filename = "";
     for (const [name, file] of Object.entries(gist.files || {})) {
-      content = file.content || '';
+      content = file.content || "";
       filename = name;
       break;
     }
@@ -430,14 +444,14 @@ class GistBlog {
 
     return {
       id: gist.id,
-      description: cleanDesc.trim() || 'Untitled',
+      description: cleanDesc.trim() || "Untitled",
       tags,
       content,
       filename,
       excerpt,
       created_at: gist.created_at,
       updated_at: gist.updated_at,
-      url: gist.html_url
+      url: gist.html_url,
     };
   }
 
@@ -454,7 +468,7 @@ class GistBlog {
     if (!gist) {
       return null;
     }
-    
+
     const processed = this.processGist(gist);
 
     // Cache the result
@@ -468,24 +482,27 @@ class GistBlog {
     for (const gist of gists) {
       tags.push(...gist.tags);
     }
-    
+
     const tagCounts = {};
-    tags.forEach(tag => {
+    tags.forEach((tag) => {
       tagCounts[tag] = (tagCounts[tag] || 0) + 1;
     });
-    
+
     return Object.keys(tagCounts).sort((a, b) => tagCounts[b] - tagCounts[a]);
   }
 
   paginate(items, page) {
     const total = items.length;
     const totalPages = Math.ceil(total / CONFIG.ITEMS_PER_PAGE);
-    const currentPage = Math.min(Math.max(1, page), totalPages || 1);
+    const currentPage = Math.min(
+      Math.max(1, page || 1),
+      Math.min(totalPages || 1, CONFIG.MAX_PAGES),
+    );
     const offset = (currentPage - 1) * CONFIG.ITEMS_PER_PAGE;
-    
+
     // Generate page numbers for pagination controls
     const pageNumbers = this.generatePageNumbers(currentPage, totalPages);
-    
+
     return {
       items: items.slice(offset, offset + CONFIG.ITEMS_PER_PAGE),
       current_page: currentPage,
@@ -493,7 +510,7 @@ class GistBlog {
       total_items: total,
       has_prev: currentPage > 1,
       has_next: currentPage < totalPages,
-      page_numbers: pageNumbers
+      page_numbers: pageNumbers,
     };
   }
 
@@ -502,47 +519,47 @@ class GistBlog {
       // Show all pages if 7 or fewer
       return Array.from({ length: totalPages }, (_, i) => i + 1);
     }
-    
+
     const pages = [];
-    
+
     // Always show first page
     pages.push(1);
-    
+
     if (currentPage <= 4) {
       // Near the beginning: 1, 2, 3, 4, 5, ..., last
       pages.push(2, 3, 4, 5);
-      if (totalPages > 6) pages.push('...');
+      if (totalPages > 6) pages.push("...");
       pages.push(totalPages);
     } else if (currentPage >= totalPages - 3) {
       // Near the end: 1, ..., n-4, n-3, n-2, n-1, n
-      if (totalPages > 6) pages.push('...');
+      if (totalPages > 6) pages.push("...");
       for (let i = totalPages - 4; i <= totalPages; i++) {
         if (i > 1) pages.push(i);
       }
     } else {
       // In the middle: 1, ..., current-1, current, current+1, ..., last
-      pages.push('...');
+      pages.push("...");
       pages.push(currentPage - 1, currentPage, currentPage + 1);
-      pages.push('...');
+      pages.push("...");
       pages.push(totalPages);
     }
-    
+
     return pages;
   }
 
   async showIndex(url) {
     const gists = await this.getGists();
     const tags = this.getAllTags(gists);
-    const page = parseInt(url.searchParams.get('page') || '1');
+    const page = parseInt(url.searchParams.get("page") || "1");
     const pagination = this.paginate(gists, page);
 
     const html = this.render(
       this.siteName,
       this.indexView(pagination.items, tags, pagination),
       {
-        description: 'Personal blog powered by GitHub Gists',
-        canonicalUrl: this.siteUrl
-      }
+        description: "Personal blog powered by GitHub Gists",
+        canonicalUrl: this.siteUrl,
+      },
     );
     return ResponseFactory.html(html);
   }
@@ -558,7 +575,7 @@ class GistBlog {
     if (!gist) {
       // Fallback to list data if detail fetch fails
       const gists = await this.getGists();
-      gist = gists.find(g => g.id === id);
+      gist = gists.find((g) => g.id === id);
 
       if (!gist) {
         return this.show404();
@@ -571,11 +588,11 @@ class GistBlog {
       {
         description: gist.excerpt,
         canonicalUrl: `${this.siteUrl}/gist/${gist.id}`,
-        ogType: 'article',
+        ogType: "article",
         publishedTime: gist.created_at,
         modifiedTime: gist.updated_at,
-        tags: gist.tags
-      }
+        tags: gist.tags,
+      },
     );
     return ResponseFactory.html(html);
   }
@@ -586,8 +603,8 @@ class GistBlog {
     }
 
     const allGists = await this.getGists();
-    const gists = allGists.filter(g => g.tags.includes(tag));
-    const page = parseInt(url.searchParams.get('page') || '1');
+    const gists = allGists.filter((g) => g.tags.includes(tag));
+    const page = parseInt(url.searchParams.get("page") || "1");
     const pagination = this.paginate(gists, page);
 
     const html = this.render(
@@ -595,8 +612,8 @@ class GistBlog {
       this.tagView(tag, pagination.items, pagination),
       {
         description: `All posts tagged with #${tag}`,
-        canonicalUrl: `${this.siteUrl}/tag/${tag}`
-      }
+        canonicalUrl: `${this.siteUrl}/tag/${tag}`,
+      },
     );
     return ResponseFactory.html(html);
   }
@@ -604,7 +621,7 @@ class GistBlog {
   async generateRSS() {
     const gists = await this.getGists();
     const latestGists = gists.slice(0, CONFIG.RSS_LIMIT); // Latest CONFIG.RSS_LIMIT posts
-    
+
     const rss = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
@@ -613,25 +630,29 @@ class GistBlog {
     <description>Personal blog powered by GitHub Gists</description>
     <atom:link href="${this.siteUrl}/rss.xml" rel="self" type="application/rss+xml" />
     <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>
-    ${latestGists.map(gist => `
+    ${latestGists
+      .map(
+        (gist) => `
     <item>
       <title>${Utils.escapeHtml(gist.description)}</title>
       <link>${this.siteUrl}/gist/${gist.id}</link>
       <guid isPermaLink="true">${this.siteUrl}/gist/${gist.id}</guid>
       <description><![CDATA[${Utils.escapeHtml(gist.excerpt)}]]></description>
       <pubDate>${new Date(gist.created_at).toUTCString()}</pubDate>
-      ${gist.tags.map(tag => `<category>${Utils.escapeHtml(tag)}</category>`).join('\n      ')}
-    </item>`).join('')}
+      ${gist.tags.map((tag) => `<category>${Utils.escapeHtml(tag)}</category>`).join("\n      ")}
+    </item>`,
+      )
+      .join("")}
   </channel>
 </rss>`;
-    
+
     return ResponseFactory.rss(rss);
   }
 
   async generateSitemap() {
     const gists = await this.getGists();
     const tags = this.getAllTags(gists);
-    
+
     const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
@@ -640,40 +661,50 @@ class GistBlog {
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
-  ${gists.map(gist => `
+  ${gists
+    .map(
+      (gist) => `
   <url>
     <loc>${this.siteUrl}/gist/${gist.id}</loc>
     <lastmod>${new Date(gist.updated_at).toISOString()}</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
-  </url>`).join('')}
-  ${tags.map(tag => `
+  </url>`,
+    )
+    .join("")}
+  ${tags
+    .map(
+      (tag) => `
   <url>
     <loc>${this.siteUrl}/tag/${encodeURIComponent(tag)}</loc>
     <lastmod>${new Date().toISOString()}</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.6</priority>
-  </url>`).join('')}
+  </url>`,
+    )
+    .join("")}
 </urlset>`;
-    
+
     return ResponseFactory.xml(sitemap);
   }
 
   show404() {
-    const html = this.render('404 - Not Found', this.notFoundView());
+    const html = this.render("404 - Not Found", this.notFoundView());
     return ResponseFactory.notFound(html);
   }
 
   async showStaticPage(name) {
-    const html = await this.env.GIST_CACHE.get(`static-${name}`, 'text');
+    const html = await this.env.GIST_CACHE.get(`static-${name}`, "text").catch(
+      () => null,
+    );
     if (!html) return this.show404();
     return new Response(html, {
-      headers: { 'Content-Type': 'text/html; charset=utf-8' }
+      headers: { "Content-Type": "text/html; charset=utf-8" },
     });
   }
 
   showError(message) {
-    const html = this.render('Error', this.errorView(message));
+    const html = this.render("Error", this.errorView(message));
     return ResponseFactory.error(html, 500);
   }
 
@@ -682,12 +713,18 @@ class GistBlog {
     return `
       <div class="tags">
         <span>Tags:</span>
-        ${tags.map(tag => `
+        ${tags
+          .map(
+            (tag) => `
           <a href="/tag/${encodeURIComponent(tag)}" class="tag">#${Utils.escapeHtml(tag)}</a>
-        `).join('')}
+        `,
+          )
+          .join("")}
       </div>
 
-      ${gists.map(gist => `
+      ${gists
+        .map(
+          (gist) => `
         <article class="gist-item">
           <h2 class="gist-title">
             <a href="/gist/${encodeURIComponent(gist.id)}">
@@ -696,35 +733,57 @@ class GistBlog {
           </h2>
           <div class="gist-meta">
             ${Utils.formatDate(gist.created_at)}
-            ${gist.tags.length ? `
-              • ${gist.tags.map(tag => `
+            ${
+              gist.tags.length
+                ? `
+              • ${gist.tags
+                .map(
+                  (tag) => `
                 <a href="/tag/${encodeURIComponent(tag)}" class="tag-inline">#${Utils.escapeHtml(tag)}</a>
-              `).join('')}
-            ` : ''}
+              `,
+                )
+                .join("")}
+            `
+                : ""
+            }
           </div>
-          ${gist.excerpt ? `
+          ${
+            gist.excerpt
+              ? `
             <p class="gist-excerpt">${Utils.escapeHtml(gist.excerpt)}</p>
-          ` : ''}
+          `
+              : ""
+          }
         </article>
-      `).join('')}
+      `,
+        )
+        .join("")}
       
-      ${pagination.total_pages > 1 ? `
+      ${
+        pagination.total_pages > 1
+          ? `
         <nav class="pagination">
-          ${pagination.has_prev ? `
+          ${
+            pagination.has_prev
+              ? `
             <a href="/?page=1" class="pagination-first" title="First page">⇤</a>
             <a href="/?page=${pagination.current_page - 1}" class="pagination-prev">← Previous</a>
-          ` : ''}
+          `
+              : ""
+          }
           
           <div class="pagination-numbers">
-            ${pagination.page_numbers.map(pageNum => {
-              if (pageNum === '...') {
-                return '<span class="pagination-ellipsis">...</span>';
-              } else if (pageNum === pagination.current_page) {
-                return `<span class="pagination-current">${pageNum}</span>`;
-              } else {
-                return `<a href="/?page=${pageNum}" class="pagination-number">${pageNum}</a>`;
-              }
-            }).join('')}
+            ${pagination.page_numbers
+              .map((pageNum) => {
+                if (pageNum === "...") {
+                  return '<span class="pagination-ellipsis">...</span>';
+                } else if (pageNum === pagination.current_page) {
+                  return `<span class="pagination-current">${pageNum}</span>`;
+                } else {
+                  return `<a href="/?page=${pageNum}" class="pagination-number">${pageNum}</a>`;
+                }
+              })
+              .join("")}
           </div>
           
           <div class="pagination-info">
@@ -732,22 +791,28 @@ class GistBlog {
             <span class="pagination-total">(${pagination.total_items} posts)</span>
           </div>
           
-          ${pagination.has_next ? `
+          ${
+            pagination.has_next
+              ? `
             <a href="/?page=${pagination.current_page + 1}" class="pagination-next">Next →</a>
             <a href="/?page=${pagination.total_pages}" class="pagination-last" title="Last page">⇥</a>
-          ` : ''}
+          `
+              : ""
+          }
         </nav>
-      ` : ''}
+      `
+          : ""
+      }
     `;
   }
 
   async gistView(gist) {
-    const isMarkdown = gist.filename && (
-      gist.filename.toLowerCase().endsWith('.md') ||
-      gist.filename.toLowerCase().endsWith('.markdown')
-    );
+    const isMarkdown =
+      gist.filename &&
+      (gist.filename.toLowerCase().endsWith(".md") ||
+        gist.filename.toLowerCase().endsWith(".markdown"));
 
-    let markdownContent = '';
+    let markdownContent = "";
     if (isMarkdown) {
       markdownContent = await this.markdownParser.parseMarkdown(gist.content);
     }
@@ -768,27 +833,43 @@ class GistBlog {
             <time datetime="${gist.updated_at}">
               Updated: ${Utils.formatDate(gist.updated_at)}
             </time>
-            ${gist.tags.length ? `
+            ${
+              gist.tags.length
+                ? `
               <div class="tags-inline">
-                ${gist.tags.map(tag => `
+                ${gist.tags
+                  .map(
+                    (tag) => `
                   <a href="/tag/${encodeURIComponent(tag)}" class="tag-inline">#${Utils.escapeHtml(tag)}</a>
-                `).join('')}
+                `,
+                  )
+                  .join("")}
               </div>
-            ` : ''}
+            `
+                : ""
+            }
           </div>
         </header>
 
         <div class="gist-content">
-          ${gist.filename ? `
+          ${
+            gist.filename
+              ? `
             <div class="filename">${Utils.escapeHtml(gist.filename)}</div>
-          ` : ''}
-          ${isMarkdown ? `
+          `
+              : ""
+          }
+          ${
+            isMarkdown
+              ? `
             <div class="markdown-content">
               ${markdownContent}
             </div>
-          ` : `
+          `
+              : `
             <pre><code>${Utils.escapeHtml(gist.content)}</code></pre>
-          `}
+          `
+          }
         </div>
 
       </article>
@@ -803,10 +884,15 @@ class GistBlog {
 
       <h2>Posts tagged with #${Utils.escapeHtml(tag)}</h2>
 
-      ${gists.length === 0 ? `
+      ${
+        gists.length === 0
+          ? `
         <p class="empty-state">No posts found with this tag.</p>
-      ` : `
-        ${gists.map(gist => `
+      `
+          : `
+        ${gists
+          .map(
+            (gist) => `
           <article class="gist-item">
             <h3 class="gist-title">
               <a href="/gist/${encodeURIComponent(gist.id)}">
@@ -816,29 +902,43 @@ class GistBlog {
             <div class="gist-meta">
               ${Utils.formatDate(gist.created_at)}
             </div>
-            ${gist.excerpt ? `
+            ${
+              gist.excerpt
+                ? `
               <p class="gist-excerpt">${Utils.escapeHtml(gist.excerpt)}</p>
-            ` : ''}
+            `
+                : ""
+            }
           </article>
-        `).join('')}
+        `,
+          )
+          .join("")}
         
-        ${pagination.total_pages > 1 ? `
+        ${
+          pagination.total_pages > 1
+            ? `
           <nav class="pagination">
-            ${pagination.has_prev ? `
+            ${
+              pagination.has_prev
+                ? `
               <a href="/tag/${encodeURIComponent(tag)}?page=1" class="pagination-first" title="First page">⇤</a>
               <a href="/tag/${encodeURIComponent(tag)}?page=${pagination.current_page - 1}" class="pagination-prev">← Previous</a>
-            ` : ''}
+            `
+                : ""
+            }
             
             <div class="pagination-numbers">
-              ${pagination.page_numbers.map(pageNum => {
-                if (pageNum === '...') {
-                  return '<span class="pagination-ellipsis">...</span>';
-                } else if (pageNum === pagination.current_page) {
-                  return `<span class="pagination-current">${pageNum}</span>`;
-                } else {
-                  return `<a href="/tag/${encodeURIComponent(tag)}?page=${pageNum}" class="pagination-number">${pageNum}</a>`;
-                }
-              }).join('')}
+              ${pagination.page_numbers
+                .map((pageNum) => {
+                  if (pageNum === "...") {
+                    return '<span class="pagination-ellipsis">...</span>';
+                  } else if (pageNum === pagination.current_page) {
+                    return `<span class="pagination-current">${pageNum}</span>`;
+                  } else {
+                    return `<a href="/tag/${encodeURIComponent(tag)}?page=${pageNum}" class="pagination-number">${pageNum}</a>`;
+                  }
+                })
+                .join("")}
             </div>
             
             <div class="pagination-info">
@@ -846,13 +946,20 @@ class GistBlog {
               <span class="pagination-total">(${pagination.total_items} posts)</span>
             </div>
             
-            ${pagination.has_next ? `
+            ${
+              pagination.has_next
+                ? `
               <a href="/tag/${encodeURIComponent(tag)}?page=${pagination.current_page + 1}" class="pagination-next">Next →</a>
               <a href="/tag/${encodeURIComponent(tag)}?page=${pagination.total_pages}" class="pagination-last" title="Last page">⇥</a>
-            ` : ''}
+            `
+                : ""
+            }
           </nav>
-        ` : ''}
-      `}
+        `
+            : ""
+        }
+      `
+      }
     `;
   }
 
@@ -878,12 +985,12 @@ class GistBlog {
 
   render(title, content, meta = {}) {
     const {
-      description = 'Personal blog powered by GitHub Gists',
+      description = "Personal blog powered by GitHub Gists",
       canonicalUrl = this.siteUrl,
-      ogType = 'website',
+      ogType = "website",
       publishedTime = null,
       modifiedTime = null,
-      tags = []
+      tags = [],
     } = meta;
 
     return `<!DOCTYPE html>
@@ -901,9 +1008,9 @@ class GistBlog {
     <meta property="og:description" content="${Utils.escapeHtml(description)}">
     <meta property="og:url" content="${canonicalUrl}">
     <meta property="og:site_name" content="${this.siteName}">
-    ${publishedTime ? `<meta property="article:published_time" content="${publishedTime}">` : ''}
-    ${modifiedTime ? `<meta property="article:modified_time" content="${modifiedTime}">` : ''}
-    ${tags.map(tag => `<meta property="article:tag" content="${Utils.escapeHtml(tag)}">`).join('\n    ')}
+    ${publishedTime ? `<meta property="article:published_time" content="${publishedTime}">` : ""}
+    ${modifiedTime ? `<meta property="article:modified_time" content="${modifiedTime}">` : ""}
+    ${tags.map((tag) => `<meta property="article:tag" content="${Utils.escapeHtml(tag)}">`).join("\n    ")}
     
     <!-- Twitter -->
     <meta name="twitter:card" content="summary">
