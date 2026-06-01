@@ -4,6 +4,7 @@ node_modules/
 # Cloudflare Workers
 .wrangler/
 .dev.vars
+wrangler.toml
 wrangler.local.toml
 
 # Environment variables

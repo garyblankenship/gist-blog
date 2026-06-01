@@ -4,15 +4,16 @@
   "description": "Transform GitHub Gists into a beautiful blog powered by Cloudflare Workers",
   "type": "module",
   "scripts": {
-    "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
+    "setup": "make setup",
+    "doctor": "make doctor",
+    "dev": "make dev",
+    "deploy": "make deploy",
     "build": "make build",
+    "check": "make check",
+    "verify": "make verify",
     "build:deploy": "npm run build && npm run deploy",
-    "tail": "wrangler tail",
-    "upload": "go run upload-gist.go",
-    "sync": "go run gist-manager.go sync",
-    "list": "go run gist-manager.go list",
-    "clean": "rm -rf node_modules .wrangler .gist-cache"
+    "tail": "make tail",
+    "clean": "make clean"
   },
   "keywords": [
     "blog",
