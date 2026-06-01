@@ -53,10 +53,14 @@ func (c *Client) parseRateLimit(resp *http.Response) {
 }
 
 // apiRequest makes an authenticated request to the GitHub API with rate limiting and retry logic
-func (c *Client) apiRequest(ctx context.Context, method, url string, body io.Reader) (*http.Response, error) {
+func (c *Client) apiRequest(ctx context.Context, method, url string, body []byte) (*http.Response, error) {
 	var lastErr error
 	for attempt := 0; attempt <= c.retryMax; attempt++ {
-		req, err := http.NewRequestWithContext(ctx, method, url, body)
+		var reader io.Reader
+		if body != nil {
+			reader = bytes.NewReader(body)
+		}
+		req, err := http.NewRequestWithContext(ctx, method, url, reader)
 		if err != nil {
 			return nil, fmt.Errorf("create request: %w", err)
 		}
@@ -104,6 +108,9 @@ func (c *Client) apiRequest(ctx context.Context, method, url string, body io.Rea
 		}
 	}
 
+	if lastErr == nil {
+		return nil, fmt.Errorf("apiRequest: retries exhausted for %s %s", method, url)
+	}
 	return nil, lastErr
 }
 
@@ -171,7 +178,7 @@ func (c *Client) Create(ctx context.Context, gist *domain.Gist) error {
 	}
 
 	url := fmt.Sprintf("%s/gists", c.baseURL)
-	resp, err := c.apiRequest(ctx, "POST", url, bytes.NewReader(body))
+	resp, err := c.apiRequest(ctx, "POST", url, body)
 	if err != nil {
 		return err
 	}
@@ -209,7 +216,7 @@ func (c *Client) Update(ctx context.Context, gist *domain.Gist) error {
 	}
 
 	url := fmt.Sprintf("%s/gists/%s", c.baseURL, gist.ID.String())
-	resp, err := c.apiRequest(ctx, "PATCH", url, bytes.NewReader(body))
+	resp, err := c.apiRequest(ctx, "PATCH", url, body)
 	if err != nil {
 		return err
 	}
@@ -237,22 +244,6 @@ func (c *Client) Delete(ctx context.Context, id domain.GistID) error {
 	}
 
 	return nil
-}
-
-// ToggleVisibility toggles public/private status
-func (c *Client) ToggleVisibility(ctx context.Context, id domain.GistID) error {
-	// First, get the current gist to know its current visibility
-	gist, err := c.GetByID(ctx, id)
-	if err != nil {
-		return err
-	}
-
-	// Note: GitHub API doesn't support changing visibility after creation
-	// The 'public' field is only settable at creation time
-	// This will return success but won't actually change visibility
-	_ = gist
-
-	return fmt.Errorf("GitHub API does not support changing gist visibility after creation")
 }
 
 // maxAPIErrorBodyBytes caps how much of an API error response body is read
