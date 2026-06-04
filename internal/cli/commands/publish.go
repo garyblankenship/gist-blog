@@ -23,10 +23,10 @@ func NewPublishCommand(service GistService) *cobra.Command {
 		Use:     "publish [files...]",
 		Aliases: []string{"new"},
 		Short:   "Create a gist from files",
-		Long:    `Create a new GitHub gist from one or more files.
+		Long: `Create a new GitHub gist from one or more files.
 Gists can be public or private and support descriptions with tags (e.g., "#golang #tutorial").`,
-		Args:    cobra.MinimumNArgs(1),
-		RunE:    pc.Run,
+		Args: cobra.MinimumNArgs(1),
+		RunE: pc.Run,
 	}
 
 	cmd.Flags().StringVarP(&pc.description, "desc", "d", "", "Set description for the gist")

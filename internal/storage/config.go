@@ -11,7 +11,7 @@ import (
 
 // ConfigFile implements the ConfigRepository interface using a JSON file
 type ConfigFile struct {
-	fs       service.FileSystem
+	fs         service.FileSystem
 	configPath string
 }
 
