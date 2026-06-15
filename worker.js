@@ -23,7 +23,21 @@ let marked = null;
 async function initMarked() {
   if (!marked) {
     marked = await import(MARKED_URL);
-    marked.marked.use({ gfm: true, breaks: false, pedantic: false });
+    marked.marked.use({
+      gfm: true,
+      breaks: false,
+      pedantic: false,
+      renderer: {
+        // Neutralize literal HTML in markdown (gist authors could otherwise
+        // inject <script>/<img onerror>). Markdown formatting still renders;
+        // only raw HTML tokens are escaped.
+        html(token) {
+          const text =
+            typeof token === "string" ? token : (token && token.text) || "";
+          return Utils.escapeHtml(text);
+        },
+      },
+    });
   }
   return marked;
 }
@@ -179,6 +193,8 @@ class ResponseFactory {
       headers: {
         "Content-Type": "text/html;charset=UTF-8",
         "Cache-Control": cacheControl,
+        "Content-Security-Policy":
+          "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; script-src 'self'; base-uri 'self'; object-src 'none'",
         "X-Content-Type-Options": "nosniff",
       },
     });
@@ -367,17 +383,28 @@ class GistBlog {
         case "":
         case "index":
           return await this.showIndex(url);
-        case "gist":
-          return await this.showGist(segments[1] || "");
-        case "tag":
-          return await this.showTag(segments[1] || "", url);
+        case "gist": {
+          const gistId = segments[1] || "";
+          if (!/^[a-f0-9]{20,40}$/i.test(gistId)) {
+            return this.show400("Invalid gist ID");
+          }
+          return await this.showGist(gistId);
+        }
+        case "tag": {
+          const tag = segments[1] || "";
+          if (!/^[A-Za-z0-9_-]{1,50}$/.test(tag)) {
+            return this.show400("Invalid tag");
+          }
+          return await this.showTag(tag, url);
+        }
         case "vybe":
           return await this.showStaticPage("vybe");
         default:
           return this.show404();
       }
     } catch (error) {
-      return this.showError(error.message);
+      // Generic message only — never expose internal API URLs/stack fragments.
+      return this.showError("Something went wrong. Please try again later.");
     } finally {
       const duration = Date.now() - startTime;
       this.metricsService.recordRequest(duration);
@@ -693,6 +720,11 @@ class GistBlog {
     return ResponseFactory.notFound(html);
   }
 
+  show400(message) {
+    const html = this.render("400 - Bad Request", this.badRequestView(message));
+    return ResponseFactory.error(html, 400);
+  }
+
   async showStaticPage(name) {
     const html = await this.env.GIST_CACHE.get(`static-${name}`, "text").catch(
       () => null,
@@ -968,6 +1000,16 @@ class GistBlog {
       <div class="error-page">
         <h2>404 - Page Not Found</h2>
         <p>The page you're looking for doesn't exist.</p>
+        <p><a href="/">Return to homepage</a></p>
+      </div>
+    `;
+  }
+
+  badRequestView(message) {
+    return `
+      <div class="error-page">
+        <h2>400 - Bad Request</h2>
+        <p>${Utils.escapeHtml(message)}</p>
         <p><a href="/">Return to homepage</a></p>
       </div>
     `;
