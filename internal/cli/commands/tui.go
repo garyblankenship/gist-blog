@@ -33,7 +33,6 @@ The TUI provides a rich, keyboard-driven interface for:
 - Browsing all your gists
 - Filtering by tags
 - Refreshing the gist list
-- Viewing gist details
 
 Available keys:
   [↑/↓]     - Navigate
@@ -103,7 +102,6 @@ func (i gistItem) FilterValue() string {
 // Messages
 type gistsMsg []domain.Gist
 type errorMsg error
-type successMsg string
 
 // Model represents the TUI state
 type model struct {
@@ -190,7 +188,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case "?":
 			// Show help
-			m.status = "Keys: [r] Refresh • [q] Quit"
+			m.status = "Keys: [↑/↓] Navigate • [r] Refresh • [?] Help • [q] Quit"
 			return m, m.clearStatusAfter(5 * time.Second)
 		}
 
@@ -204,10 +202,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.list.SetItems(items)
 		m.status = fmt.Sprintf("Loaded %d gists", len(msg))
 		return m, m.clearStatusAfter(2 * time.Second)
-
-	case successMsg:
-		m.status = string(msg)
-		return m, m.clearStatusAfter(3 * time.Second)
 
 	case errorMsg:
 		m.err = msg
