@@ -36,6 +36,9 @@ If not found in cache, will fetch directly from GitHub.`,
 func (c *ShowCommand) Run(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 	gistID := args[0]
+	if gistID == "" {
+		return fmt.Errorf("gist ID must not be empty")
+	}
 
 	// First try to get from cache
 	gists, err := c.service.ListGists(ctx)
@@ -45,11 +48,18 @@ func (c *ShowCommand) Run(cmd *cobra.Command, args []string) error {
 
 	// Find matching gist (supporting partial ID match)
 	var gist *domain.Gist
+	var matchedIDs []string
 	for i := range gists {
 		if strings.HasPrefix(string(gists[i].ID), gistID) {
-			gist = &gists[i]
-			break
+			if gist == nil {
+				gist = &gists[i]
+			}
+			matchedIDs = append(matchedIDs, string(gists[i].ID))
 		}
+	}
+
+	if len(matchedIDs) > 1 {
+		return fmt.Errorf("ambiguous gist ID %q matches %d gists: %s", gistID, len(matchedIDs), strings.Join(matchedIDs, ", "))
 	}
 
 	if gist == nil {
