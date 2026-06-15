@@ -52,6 +52,30 @@ func (c *Client) parseRateLimit(resp *http.Response) {
 	}
 }
 
+// maxRateLimitWait caps how long a throttled request will block, so a skewed
+// server clock cannot stall the CLI for the full rate-limit window.
+const maxRateLimitWait = time.Minute
+
+// rateLimitWait decides how long to wait before retrying a throttled request.
+// Prefers the Retry-After header (delta-seconds or HTTP-date), then the
+// rate-limit reset time, capped at maxRateLimitWait. Returns 0 if no wait is
+// needed.
+func (c *Client) rateLimitWait(resp *http.Response) time.Duration {
+	if ra := resp.Header.Get("Retry-After"); ra != "" {
+		if secs, err := strconv.Atoi(ra); err == nil {
+			return min(time.Duration(secs)*time.Second, maxRateLimitWait)
+		}
+		if t, err := http.ParseTime(ra); err == nil {
+			return min(time.Until(t), maxRateLimitWait)
+		}
+	}
+	wait := time.Until(c.rateLimit.reset)
+	if wait < 0 {
+		return 0
+	}
+	return min(wait, maxRateLimitWait)
+}
+
 // apiRequest makes an authenticated request to the GitHub API with rate limiting and retry logic
 func (c *Client) apiRequest(ctx context.Context, method, url string, body []byte) (*http.Response, error) {
 	var lastErr error
@@ -79,13 +103,15 @@ func (c *Client) apiRequest(ctx context.Context, method, url string, body []byte
 
 		c.parseRateLimit(resp)
 
-		// Handle rate limiting
-		if resp.StatusCode == http.StatusForbidden && c.rateLimit.remaining == 0 {
+		// Rate limited: GitHub throttles with 429, or 403 once the budget is
+		// exhausted. Honor Retry-After when present, capped to avoid stalling.
+		if resp.StatusCode == http.StatusTooManyRequests ||
+			(resp.StatusCode == http.StatusForbidden && c.rateLimit.remaining == 0) {
 			resp.Body.Close()
-			waitUntil := time.Until(c.rateLimit.reset)
-			if waitUntil > 0 {
+			wait := c.rateLimitWait(resp)
+			if wait > 0 {
 				select {
-				case <-time.After(waitUntil):
+				case <-time.After(wait):
 				case <-ctx.Done():
 					return nil, ctx.Err()
 				}
@@ -97,9 +123,15 @@ func (c *Client) apiRequest(ctx context.Context, method, url string, body []byte
 			return resp, nil
 		}
 
-		// Server error - exponential backoff
-		resp.Body.Close()
+		// Server error. Read the error body BEFORE closing so the message is
+		// not blank, then only retry idempotent GETs — retrying POST/PATCH/
+		// DELETE can duplicate a gist created just before the 5xx.
 		lastErr = c.handleAPIError(resp)
+		resp.Body.Close()
+		if method != http.MethodGet {
+			return nil, lastErr
+		}
+
 		wait := time.Duration(1<<uint(attempt)) * c.retryWait
 		select {
 		case <-time.After(wait):
