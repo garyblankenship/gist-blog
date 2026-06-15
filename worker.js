@@ -86,13 +86,6 @@ class CacheService {
     if (!this.env.GIST_CACHE) return;
     await this.env.GIST_CACHE.delete(cacheKey);
   }
-
-  async invalidateGist(id) {
-    // Delete the gist detail cache
-    await this.delete(`gist-${id}`);
-    // Delete the list cache (tags may have changed)
-    await this.delete("gists-list");
-  }
 }
 
 class GitHubService {
@@ -291,7 +284,6 @@ class MetricsService {
   reset() {
     this.cacheHits = 0;
     this.cacheMisses = 0;
-    this.apiCalls = 0;
     this.totalRequestTime = 0;
     this.requestCount = 0;
   }
@@ -304,31 +296,9 @@ class MetricsService {
     this.cacheMisses++;
   }
 
-  recordApiCall() {
-    this.apiCalls++;
-  }
-
   recordRequest(duration) {
     this.requestCount++;
     this.totalRequestTime += duration;
-  }
-
-  getStats() {
-    return {
-      cacheHitRate:
-        this.cacheHits + this.cacheMisses > 0
-          ? (
-              (this.cacheHits / (this.cacheHits + this.cacheMisses)) *
-              100
-            ).toFixed(1) + "%"
-          : "0%",
-      apiCalls: this.apiCalls,
-      avgRequestTime:
-        this.requestCount > 0
-          ? (this.totalRequestTime / this.requestCount).toFixed(1) + "ms"
-          : "0ms",
-      requestCount: this.requestCount,
-    };
   }
 }
 
