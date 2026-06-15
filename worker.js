@@ -257,6 +257,31 @@ const Utils = {
     );
   },
 
+  // sanitizeLinks neutralizes dangerous URL schemes in href attributes
+  // produced from markdown (e.g. [x](javascript:alert(1))). Allowlist approach:
+  // relative URLs, anchors, and http(s)/mailto/tel pass; anything else becomes
+  // "#". Defense-in-depth alongside the marked html-token escape and CSP.
+  sanitizeLinks(html) {
+    if (!html) return "";
+    return String(html).replace(
+      /href\s*=\s*("|')\s*([^"'\s]*)\1/gi,
+      (match, quote, url) => {
+        const u = url.trim();
+        if (
+          u === "" ||
+          u.startsWith("#") ||
+          u.startsWith("/") ||
+          /^https?:/i.test(u) ||
+          /^mailto:/i.test(u) ||
+          /^tel:/i.test(u)
+        ) {
+          return match;
+        }
+        return `href=${quote}#${quote}`;
+      },
+    );
+  },
+
   // Optimized excerpt generation - single pass
   generateExcerpt(content) {
     if (!content) return "";
@@ -307,7 +332,7 @@ class MarkdownParser {
   async parseMarkdown(text) {
     await initMarked();
     try {
-      return marked.marked.parse(text);
+      return Utils.sanitizeLinks(marked.marked.parse(text));
     } catch {
       return `<pre>${Utils.escapeHtml(text)}</pre>`;
     }
