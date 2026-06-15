@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -31,7 +30,7 @@ gists from your GitHub account, overwriting any locally cached versions.`,
 
 // Run executes the sync command
 func (c *SyncCommand) Run(cmd *cobra.Command, args []string) error {
-	ctx := context.Background()
+	ctx := cmd.Context()
 
 	fmt.Println("Syncing gists from GitHub...")
 

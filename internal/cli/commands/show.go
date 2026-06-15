@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"context"
 	"fmt"
 	"sort"
 	"strings"
@@ -35,7 +34,7 @@ If not found in cache, will fetch directly from GitHub.`,
 
 // Run executes the show command
 func (c *ShowCommand) Run(cmd *cobra.Command, args []string) error {
-	ctx := context.Background()
+	ctx := cmd.Context()
 	gistID := args[0]
 
 	// First try to get from cache

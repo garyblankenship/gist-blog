@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -37,7 +36,7 @@ Gists can be public or private and support descriptions with tags (e.g., "#golan
 
 // Run executes the publish command
 func (c *PublishCommand) Run(cmd *cobra.Command, args []string) error {
-	ctx := context.Background()
+	ctx := cmd.Context()
 	c.files = args
 
 	fmt.Printf("Publishing %d file(s) to GitHub...\n", len(c.files))

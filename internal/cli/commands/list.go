@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"sort"
@@ -40,7 +39,7 @@ Use --tag to filter by specific tags or --tags to show all available tags.`,
 
 // Run executes the list command
 func (c *ListCommand) Run(cmd *cobra.Command, args []string) error {
-	ctx := context.Background()
+	ctx := cmd.Context()
 
 	// Get all gists
 	gists, err := c.service.ListGists(ctx)
