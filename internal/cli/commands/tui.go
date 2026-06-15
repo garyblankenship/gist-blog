@@ -48,7 +48,7 @@ Available keys:
 // Run executes the TUI command
 func (c *TuiCommand) Run(cmd *cobra.Command, args []string) error {
 	p := tea.NewProgram(
-		newModel(c.service),
+		newModel(c.service, cmd.Context()),
 		tea.WithAltScreen(),
 	)
 
@@ -112,6 +112,8 @@ type model struct {
 	spinner spinner.Model
 	err     error
 	status  string
+	ctx     context.Context
+	cancel  context.CancelFunc
 }
 
 // Styles
@@ -135,7 +137,11 @@ var (
 			Foreground(lipgloss.Color("241"))
 )
 
-func newModel(service GistService) model {
+func newModel(service GistService, ctx context.Context) model {
+	// Derive a cancellable context so quitting the TUI aborts any in-flight
+	// gist fetch instead of waiting for the HTTP timeout.
+	ctx, cancel := context.WithCancel(ctx)
+
 	// Initialize list
 	items := []list.Item{}
 	l := list.New(items, list.NewDefaultDelegate(), 0, 0)
@@ -154,6 +160,8 @@ func newModel(service GistService) model {
 		list:    l,
 		loading: true,
 		spinner: s,
+		ctx:     ctx,
+		cancel:  cancel,
 	}
 }
 
@@ -176,6 +184,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		switch msg.String() {
 		case "q", "ctrl+c":
+			if m.cancel != nil {
+				m.cancel()
+			}
 			return m, tea.Quit
 
 		case "r":
@@ -254,8 +265,7 @@ func (m model) View() string {
 // Commands
 func (m model) loadGists() tea.Cmd {
 	return func() tea.Msg {
-		ctx := context.Background()
-		gists, err := m.service.ListGists(ctx)
+		gists, err := m.service.ListGists(m.ctx)
 		if err != nil {
 			return errorMsg(err)
 		}
