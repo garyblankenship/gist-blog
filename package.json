@@ -4,6 +4,7 @@
   "description": "Transform GitHub Gists into a beautiful blog powered by Cloudflare Workers",
   "type": "module",
   "scripts": {
+    "test": "node --test",
     "setup": "make setup",
     "doctor": "make doctor",
     "dev": "make dev",

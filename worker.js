@@ -235,7 +235,7 @@ class ResponseFactory {
 }
 
 // ===== UTILITIES =====
-const Utils = {
+export const Utils = {
   formatDate(dateString) {
     const date = new Date(dateString);
     const options = { year: "numeric", month: "short", day: "numeric" };
