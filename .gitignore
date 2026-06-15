@@ -16,14 +16,13 @@ wrangler.local.toml
 *.log
 logs/
 
-# Go binaries
+# Go binaries (root-anchored so they don't mask cmd/gist/ or cmd/main/)
 *.exe
-gist
-main
+/gist
+/main
 
-# Cache directories
-.gist-cache/
-cache/
+# Cache directories (root-anchored; internal/storage/cache/ is source, not a cache)
+/.gist-cache/
 
 # Config files with secrets
 .gistconfig
