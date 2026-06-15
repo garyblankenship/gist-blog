@@ -104,22 +104,3 @@ func (s *GistService) GetGist(ctx context.Context, id string) (*domain.Gist, err
 	return s.gistRepo.GetByID(ctx, gistID)
 }
 
-// UpdateGist updates an existing gist
-func (s *GistService) UpdateGist(ctx context.Context, id domain.GistID, gist domain.Gist) error {
-	if !id.Valid() {
-		return domain.ErrInvalidGistID{ID: string(id)}
-	}
-
-	// Ensure the gist has the correct ID
-	gist.ID = id
-
-	// Update in repository
-	if err := s.gistRepo.Update(ctx, &gist); err != nil {
-		return fmt.Errorf("update gist: %w", err)
-	}
-
-	// Clear cache to ensure fresh data
-	_ = s.cacheRepo.Clear()
-
-	return nil
-}
