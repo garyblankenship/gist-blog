@@ -15,6 +15,7 @@ import (
 	"gist/internal/storage/cache"
 	"gist/internal/storage/github"
 
+	"github.com/charmbracelet/x/term"
 	"github.com/spf13/cobra"
 )
 
@@ -86,6 +87,7 @@ Complete documentation is available at https://github.com/garyblankenship/gist-b
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
 		},
+		SilenceErrors: true,
 		SilenceUsage: true,
 	}
 	rootCmd.InitDefaultVersionFlag()
@@ -147,7 +149,13 @@ func setupConfiguration(fs *storage.OSFileSystem) {
 	_, _ = fmt.Scanln(&username)
 
 	fmt.Print("GitHub token: ")
-	_, _ = fmt.Scanln(&token)
+	tokenBytes, err := term.ReadPassword(os.Stdin.Fd())
+	fmt.Println()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error reading token: %v\n", err)
+		os.Exit(1)
+	}
+	token = string(tokenBytes)
 
 	if username == "" || token == "" {
 		fmt.Fprintln(os.Stderr, "Error: Both username and token are required")
