@@ -8,6 +8,10 @@ import (
 	"gist/internal/domain"
 )
 
+// maxGistFileSize caps the size of a single file published as a gist, matching
+// GitHub's per-file gist limit so a huge file is never fully buffered.
+const maxGistFileSize = 1 * 1024 * 1024
+
 // GistService orchestrates gist operations
 type GistService struct {
 	gistRepo  GistRepository
@@ -33,10 +37,17 @@ func NewGistService(
 
 // PublishFiles creates a gist directly from files
 func (s *GistService) PublishFiles(ctx context.Context, paths []string, description string, public bool) (string, error) {
-	// Validate files exist
+	// Validate files exist and are within the size limit
 	for _, path := range paths {
 		if !s.fs.Exists(path) {
 			return "", domain.ErrFileNotFound{Path: path}
+		}
+		size, err := s.fs.Size(path)
+		if err != nil {
+			return "", fmt.Errorf("stat file %s: %w", path, err)
+		}
+		if size > maxGistFileSize {
+			return "", fmt.Errorf("file %s is too large: %d bytes (max %d)", path, size, maxGistFileSize)
 		}
 	}
 

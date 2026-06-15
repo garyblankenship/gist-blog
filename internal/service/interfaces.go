@@ -44,6 +44,9 @@ type FileSystem interface {
 	// ReadFile reads file contents
 	ReadFile(path string) ([]byte, error)
 
+	// Size returns the size of a file in bytes
+	Size(path string) (int64, error)
+
 	// WriteFile writes content to a file
 	WriteFile(path string, content []byte) error
 

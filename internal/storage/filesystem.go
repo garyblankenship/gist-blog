@@ -24,6 +24,15 @@ func (fs *OSFileSystem) ReadFile(path string) ([]byte, error) {
 	return os.ReadFile(path)
 }
 
+// Size returns the size of a file in bytes
+func (fs *OSFileSystem) Size(path string) (int64, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return 0, err
+	}
+	return info.Size(), nil
+}
+
 // WriteFile atomically writes content to a file at mode 0600. It writes to a
 // sibling temp file then renames over the target so a crash mid-write cannot
 // leave a truncated/partial file (the caller may be saving credentials).
